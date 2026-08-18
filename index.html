@@ -318,6 +318,12 @@
   </div>
 
   <div class="card">
+    <h2>皮帶更換（可新增細項，例如普利珠）</h2>
+    <div id="beltItemsList"></div>
+    <button class="add-btn" id="addBeltBtn" type="button">＋ 新增細項</button>
+  </div>
+
+  <div class="card">
     <h2>其他項目（可新增多筆）</h2>
     <div id="otherItemsList"></div>
     <button class="add-btn" id="addOtherBtn" type="button">＋ 新增項目</button>
@@ -347,48 +353,57 @@ const ITEMS = [
   { id:'item3', name:'空濾更換', type:'choice', options:['高流量','原廠'], amount:'' },
   { id:'item4', name:'火星塞更換', type:'choice', options:['白金','鈦合金'], optionAmounts:{'白金':300,'鈦合金':550} },
   { id:'item5', name:'傳動室清理', type:'fixed', amount:300 },
-  { id:'item5b', name:'更換皮帶', type:'spec', specPlaceholder:'例如：型號/廠牌', amount:0, noteSuffix:'（免收清理費）' },
   { id:'item6', name:'水箱水更換', type:'fixed', amount:800 },
+  { id:'item6b', name:'煞車皮更換', type:'spec', specPlaceholder:'例如：品牌/型號', amount:0 },
+  { id:'item6c', name:'輪胎更換', type:'spec', specPlaceholder:'例如：品牌/規格', amount:0 },
   { id:'item7', name:'機油更換', type:'spec', specPlaceholder:'例如：力豹式10 40', amount:0 },
   { id:'item8', name:'齒輪油更換', type:'spec', specPlaceholder:'例如：G100', amount:0 },
 ];
 
 let otherItems = [];
-function addOtherItem(){
-  otherItems.push({ spec:'', amount:'' });
-  renderOtherItems();
+let beltItems = [];
+
+function addRow(arr, renderFn){
+  arr.push({ spec:'', amount:'' });
+  renderFn();
 }
-function removeOtherItem(idx){
-  otherItems.splice(idx,1);
-  renderOtherItems();
+function removeRow(arr, idx, renderFn){
+  arr.splice(idx,1);
+  renderFn();
 }
-function renderOtherItems(){
-  const wrap = document.getElementById('otherItemsList');
+function renderRows(arr, wrapId, placeholder, renderFn){
+  const wrap = document.getElementById(wrapId);
   wrap.innerHTML = '';
-  otherItems.forEach((row, idx) => {
+  arr.forEach((row, idx) => {
     const div = document.createElement('div');
     div.className = 'other-row';
     div.innerHTML = `
-      <div class="price-row"><span>項目${idx+1}：</span><input type="text" data-other="${idx}" data-field="spec" placeholder="例如：koso 普立珠" value="${row.spec}"></div>
-      <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-other="${idx}" data-field="amount" placeholder="0" value="${row.amount}">
-        <button class="remove-btn" data-remove="${idx}" type="button">✕</button>
+      <div class="price-row"><span>項目${idx+1}：</span><input type="text" data-wrap="${wrapId}" data-idx="${idx}" data-field="spec" placeholder="${placeholder}" value="${row.spec}"></div>
+      <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-wrap="${wrapId}" data-idx="${idx}" data-field="amount" placeholder="0" value="${row.amount}">
+        <button class="remove-btn" data-wrap="${wrapId}" data-remove="${idx}" type="button">✕</button>
       </div>
     `;
     wrap.appendChild(div);
   });
-  wrap.querySelectorAll('input[data-other]').forEach(el => {
+  wrap.querySelectorAll('input[data-idx]').forEach(el => {
     el.addEventListener('input', () => {
-      const idx = parseInt(el.getAttribute('data-other'),10);
+      const idx = parseInt(el.getAttribute('data-idx'),10);
       const field = el.getAttribute('data-field');
-      otherItems[idx][field] = el.value;
+      arr[idx][field] = el.value;
     });
   });
   wrap.querySelectorAll('[data-remove]').forEach(el => {
     el.addEventListener('click', () => {
-      removeOtherItem(parseInt(el.getAttribute('data-remove'),10));
+      removeRow(arr, parseInt(el.getAttribute('data-remove'),10), renderFn);
     });
   });
 }
+
+function renderOtherItems(){ renderRows(otherItems, 'otherItemsList', '例如：koso 普立珠', renderOtherItems); }
+function addOtherItem(){ addRow(otherItems, renderOtherItems); }
+
+function renderBeltItems(){ renderRows(beltItems, 'beltItemsList', '例如：普利珠、彈簧、皮帶型號', renderBeltItems); }
+function addBeltItem(){ addRow(beltItems, renderBeltItems); }
 
 const state = {};
 ITEMS.forEach(it => {
@@ -474,6 +489,10 @@ renderOtherItems();
 document.getElementById('addOtherBtn').addEventListener('click', addOtherItem);
 addOtherItem(); // start with one empty row for convenience
 
+renderBeltItems();
+document.getElementById('addBeltBtn').addEventListener('click', addBeltItem);
+addBeltItem(); // start with one empty row for convenience
+
 // default date = today, show ROC preview
 const dateInput = document.getElementById('serviceDate');
 const rocPreview = document.getElementById('rocPreview');
@@ -520,6 +539,14 @@ document.getElementById('generateBtn').addEventListener('click', () => {
     }
   });
 
+  beltItems.forEach(row => {
+    if(!row.spec && !row.amount) return;
+    const amt = parseInt(row.amount, 10) || 0;
+    total += amt;
+    const specPart = row.spec ? row.spec + ' ' : '';
+    lines.push(`🔧更換皮帶-${specPart}${amt}`);
+  });
+
   otherItems.forEach(row => {
     if(!row.spec && !row.amount) return;
     const amt = parseInt(row.amount, 10) || 0;
@@ -529,6 +556,10 @@ document.getElementById('generateBtn').addEventListener('click', () => {
   });
 
   const amounts = ITEMS.filter(it => state[it.id].checked && it.type !== 'flag').map(it => parseInt(state[it.id].amount,10)||0);
+  beltItems.forEach(row => {
+    if(!row.spec && !row.amount) return;
+    amounts.push(parseInt(row.amount,10)||0);
+  });
   otherItems.forEach(row => {
     if(!row.spec && !row.amount) return;
     amounts.push(parseInt(row.amount,10)||0);
