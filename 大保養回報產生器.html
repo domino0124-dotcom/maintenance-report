@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>大保養回報產生器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F5F1EA;
+    --card: #FFFFFF;
+    --ink: #241F1B;
+    --sub: #8A8078;
+    --line: #E7E0D6;
+    --accent: #E0631F;
+    --accent-dark: #B84C15;
+    --accent-soft: #FBE6D6;
+    --ok: #2F7A4D;
+    --ok-soft: #E3F0E6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(36,31,27,0.05) 1px, transparent 0);
+    background-size: 22px 22px;
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--ink);
+    padding:20px 14px 60px;
+  }
+  .wrap{max-width:560px;margin:0 auto;}
+
+  header{margin-bottom:20px;}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.12em;
+    color:var(--accent-dark);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:18px;height:2px;background:var(--accent);display:inline-block;
+  }
+  h1{
+    font-size:26px;
+    font-weight:900;
+    margin:8px 0 4px;
+    letter-spacing:0.01em;
+  }
+  .desc{color:var(--sub);font-size:14px;line-height:1.5;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:14px;
+    box-shadow: 0 1px 2px rgba(36,31,27,0.04);
+  }
+  .card h2{
+    font-size:13px;
+    font-weight:700;
+    color:var(--accent-dark);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .row{display:flex;gap:10px;margin-bottom:10px;}
+  .field{flex:1;display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:12px;color:var(--sub);font-weight:500;}
+  .field input, .field select{
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:15px;
+    font-family:inherit;
+    color:var(--ink);
+    background:#FCFAF6;
+    width:100%;
+  }
+  .field input:focus{outline:none;border-color:var(--accent);}
+  .field .rocpreview{font-size:11px;color:var(--sub);margin-top:2px;font-family:'JetBrains Mono', monospace;}
+
+  .item{
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:12px 12px;
+    margin-bottom:8px;
+    transition: border-color .15s, background .15s;
+  }
+  .item.checked{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+  }
+  .item-top{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    cursor:pointer;
+  }
+  .checkbox{
+    width:22px;height:22px;
+    border-radius:6px;
+    border:2px solid var(--sub);
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:#fff;
+    transition: all .15s;
+  }
+  .item.checked .checkbox{
+    background:var(--accent);
+    border-color:var(--accent);
+  }
+  .checkbox svg{width:14px;height:14px;opacity:0;transition:opacity .1s;}
+  .item.checked .checkbox svg{opacity:1;}
+  .item-name{font-size:15px;font-weight:500;flex:1;line-height:1.4;}
+  .item-detail{
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px dashed var(--line);
+    display:none;
+  }
+  .item.checked .item-detail{display:block;}
+
+  .choice-group{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .choice{
+    border:1.5px solid var(--line);
+    background:#fff;
+    border-radius:20px;
+    padding:6px 14px;
+    font-size:13px;
+    cursor:pointer;
+    color:var(--sub);
+    font-weight:500;
+  }
+  .choice.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  .price-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .price-row:last-child{margin-bottom:0;}
+  .price-row input{
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:14px;
+    width:100%;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .price-row span{font-size:13px;color:var(--sub);white-space:nowrap;width:70px;flex-shrink:0;}
+
+  .generate-btn{
+    width:100%;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:16px;
+    font-size:16px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    margin-top:4px;
+    transition: transform .1s, background .15s;
+  }
+  .generate-btn:active{transform:scale(0.98);}
+  .generate-btn:hover{background:var(--accent-dark);}
+
+  .output-wrap{display:none;}
+  .output-wrap.show{display:block;}
+  textarea{
+    width:100%;
+    min-height:260px;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:14px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:13.5px;
+    line-height:1.7;
+    color:var(--ink);
+    background:#FCFAF6;
+    resize:vertical;
+  }
+  .total-box{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--ok-soft);
+    border:1.5px solid var(--ok);
+    border-radius:12px;
+    padding:12px 16px;
+    margin-top:14px;
+  }
+  .total-box .label{font-size:13px;color:var(--sub);}
+  .total-box .amount{font-size:20px;font-weight:900;color:var(--ok);font-family:'JetBrains Mono', monospace;}
+  .total-msg{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    color:var(--ink);
+    margin-top:8px;
+    padding:10px 12px;
+    background:#FCFAF6;
+    border:1px solid var(--line);
+    border-radius:8px;
+    word-break:break-all;
+  }
+  .copy-btn{
+    width:100%;
+    background:var(--ok);
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    margin-top:10px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .copy-btn.copied{background:var(--ink);}
+  .copy-btn.small{padding:10px;font-size:13px;margin-top:8px;}
+
+  .hint{
+    font-size:12px;
+    color:var(--sub);
+    text-align:center;
+    margin-top:8px;
+  }
+
+  .other-row{
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:10px;
+    background:#FCFAF6;
+  }
+  .other-row .price-row:first-child{margin-bottom:8px;}
+  .remove-btn{
+    flex-shrink:0;
+    width:32px;height:32px;
+    border-radius:8px;
+    border:1.5px solid var(--line);
+    background:#fff;
+    color:var(--sub);
+    font-size:14px;
+    cursor:pointer;
+  }
+  .remove-btn:hover{border-color:#C0392B;color:#C0392B;}
+  .add-btn{
+    width:100%;
+    background:#fff;
+    border:1.5px dashed var(--accent);
+    color:var(--accent-dark);
+    border-radius:10px;
+    padding:12px;
+    font-size:14px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .add-btn:hover{background:var(--accent-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">韋德機車精品 · 大保養回報</div>
+    <h1>回報訊息產生器</h1>
+    <div class="desc">勾選這次實際有做的項目，自動組成訊息＋算好總金額，複製貼到 LINE 傳給客人。</div>
+  </header>
+
+  <div class="card">
+    <h2>基本資料</h2>
+    <div class="row">
+      <div class="field">
+        <label>客人稱呼</label>
+        <input type="text" id="customerName" placeholder="不知道可留空，看LINE聊天視窗打就好">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>車號</label>
+        <input type="text" id="plateNo" placeholder="例如：PBM-0636">
+      </div>
+      <div class="field">
+        <label>保養日期</label>
+        <input type="date" id="serviceDate">
+        <div class="rocpreview" id="rocPreview"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>里程 (km)</label>
+        <input type="text" id="mileage" placeholder="例如：11231">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>保養項目（點擊勾選）</h2>
+    <div id="itemsList"></div>
+  </div>
+
+  <div class="card">
+    <h2>其他項目（可新增多筆）</h2>
+    <div id="otherItemsList"></div>
+    <button class="add-btn" id="addOtherBtn" type="button">＋ 新增項目</button>
+  </div>
+
+  <button class="generate-btn" id="generateBtn">
+    產生回報訊息
+  </button>
+
+  <div class="output-wrap card" id="outputWrap" style="margin-top:14px;">
+    <h2>回報訊息</h2>
+    <textarea id="outputText"></textarea>
+    <div class="total-box">
+      <div class="label">項目加總</div>
+      <div class="amount" id="totalAmount">$0</div>
+    </div>
+    <button class="copy-btn" id="copyBtn">複製訊息</button>
+
+    <div class="hint">複製後貼到 LINE 聊天視窗發送給客人</div>
+  </div>
+</div>
+
+<script>
+const ITEMS = [
+  { id:'item1', name:'超音波清洗噴油嘴/節流閥清洗/引擎室泡沫積碳清理', type:'fixed', amount:1000 },
+  { id:'item2', name:'煞車油更換', type:'choice', options:['單邊','雙邊'], optionAmounts:{'單邊':500,'雙邊':800} },
+  { id:'item3', name:'空濾更換', type:'choice', options:['高流量','原廠'], amount:'' },
+  { id:'item4', name:'火星塞更換', type:'choice', options:['白金','鈦合金'], optionAmounts:{'白金':300,'鈦合金':550} },
+  { id:'item5', name:'傳動室清理', type:'fixed', amount:300 },
+  { id:'item5b', name:'更換皮帶', type:'spec', specPlaceholder:'例如：型號/廠牌', amount:0, noteSuffix:'（免收清理費）' },
+  { id:'item6', name:'水箱水更換', type:'fixed', amount:800 },
+  { id:'item7', name:'機油更換', type:'spec', specPlaceholder:'例如：力豹式10 40', amount:0 },
+  { id:'item8', name:'齒輪油更換', type:'spec', specPlaceholder:'例如：G100', amount:0 },
+];
+
+let otherItems = [];
+function addOtherItem(){
+  otherItems.push({ spec:'', amount:'' });
+  renderOtherItems();
+}
+function removeOtherItem(idx){
+  otherItems.splice(idx,1);
+  renderOtherItems();
+}
+function renderOtherItems(){
+  const wrap = document.getElementById('otherItemsList');
+  wrap.innerHTML = '';
+  otherItems.forEach((row, idx) => {
+    const div = document.createElement('div');
+    div.className = 'other-row';
+    div.innerHTML = `
+      <div class="price-row"><span>項目${idx+1}：</span><input type="text" data-other="${idx}" data-field="spec" placeholder="例如：koso 普立珠" value="${row.spec}"></div>
+      <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-other="${idx}" data-field="amount" placeholder="0" value="${row.amount}">
+        <button class="remove-btn" data-remove="${idx}" type="button">✕</button>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll('input[data-other]').forEach(el => {
+    el.addEventListener('input', () => {
+      const idx = parseInt(el.getAttribute('data-other'),10);
+      const field = el.getAttribute('data-field');
+      otherItems[idx][field] = el.value;
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(el => {
+    el.addEventListener('click', () => {
+      removeOtherItem(parseInt(el.getAttribute('data-remove'),10));
+    });
+  });
+}
+
+const state = {};
+ITEMS.forEach(it => {
+  state[it.id] = {
+    checked:false,
+    choice: it.options ? it.options[0] : null,
+    amount: it.type==='choice' ? (it.optionAmounts ? it.optionAmounts[it.options[0]] : it.amount) : (it.amount||''),
+    spec: ''
+  };
+});
+
+const listEl = document.getElementById('itemsList');
+
+function render(){
+  listEl.innerHTML = '';
+  ITEMS.forEach(it => {
+    const s = state[it.id];
+    const div = document.createElement('div');
+    div.className = 'item' + (s.checked ? ' checked' : '');
+
+    let detailHtml = '';
+    if(it.type === 'choice'){
+      detailHtml += `<div class="choice-group">` +
+        it.options.map(opt => `<div class="choice ${s.choice===opt?'active':''}" data-item="${it.id}" data-opt="${opt}">${opt}</div>`).join('') +
+        `</div>`;
+      detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" value="${s.amount}"></div>`;
+    } else if(it.type === 'spec'){
+      detailHtml += `<div class="price-row"><span>規格：</span><input type="text" data-item="${it.id}" data-field="spec" placeholder="${it.specPlaceholder}" value="${s.spec}"></div>`;
+      detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" placeholder="0" value="${s.amount}"></div>`;
+      if(it.noteSuffix){
+        detailHtml += `<div class="price-row"><span style="width:auto;">訊息會自動加註「${it.noteSuffix}」</span></div>`;
+      }
+    } else if(it.type === 'fixed'){
+      detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" value="${s.amount}"></div>`;
+    } else if(it.type === 'flag'){
+      detailHtml += `<div class="price-row"><span style="width:auto;">不計費，僅標註「${it.suffix}」</span></div>`;
+    }
+
+    div.innerHTML = `
+      <div class="item-top" data-toggle="${it.id}">
+        <div class="checkbox"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="item-name">${it.name}${it.type==='fixed' ? ' <span style="color:var(--sub);font-weight:400;">- '+it.amount+'元</span>' : ''}${it.type==='flag' ? ' <span style="color:var(--sub);font-weight:400;">('+it.suffix+')</span>' : ''}</div>
+      </div>
+      <div class="item-detail">${detailHtml}</div>
+    `;
+    listEl.appendChild(div);
+  });
+
+  attachEvents();
+}
+
+function attachEvents(){
+  listEl.querySelectorAll('[data-toggle]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-toggle');
+      state[id].checked = !state[id].checked;
+      render();
+    });
+  });
+  listEl.querySelectorAll('.choice').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = el.getAttribute('data-item');
+      const opt = el.getAttribute('data-opt');
+      const itemDef = ITEMS.find(x=>x.id===id);
+      state[id].choice = opt;
+      if(itemDef.optionAmounts) state[id].amount = itemDef.optionAmounts[opt];
+      render();
+    });
+  });
+  listEl.querySelectorAll('input[data-field]').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+    el.addEventListener('input', () => {
+      const id = el.getAttribute('data-item');
+      const field = el.getAttribute('data-field');
+      state[id][field] = el.value;
+    });
+  });
+}
+
+render();
+renderOtherItems();
+document.getElementById('addOtherBtn').addEventListener('click', addOtherItem);
+addOtherItem(); // start with one empty row for convenience
+
+// default date = today, show ROC preview
+const dateInput = document.getElementById('serviceDate');
+const rocPreview = document.getElementById('rocPreview');
+const today = new Date();
+dateInput.value = today.toISOString().split('T')[0];
+
+function toROC(str){
+  if(!str) return '';
+  const [y,m,d] = str.split('-');
+  const rocYear = parseInt(y,10) - 1911;
+  return `${rocYear}/${m}/${d}`;
+}
+function updateRocPreview(){
+  rocPreview.textContent = dateInput.value ? '民國 ' + toROC(dateInput.value) : '';
+}
+dateInput.addEventListener('input', updateRocPreview);
+updateRocPreview();
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const name = document.getElementById('customerName').value.trim();
+  const plate = document.getElementById('plateNo').value.trim();
+  const date = toROC(dateInput.value);
+  const mileage = document.getElementById('mileage').value.trim();
+
+  let lines = [];
+  let total = 0;
+
+  ITEMS.forEach(it => {
+    const s = state[it.id];
+    if(!s.checked) return;
+    const amt = parseInt(s.amount, 10) || 0;
+    total += amt;
+
+    if(it.type === 'fixed'){
+      lines.push(`🔧${it.name}-${s.amount || it.amount}`);
+    } else if(it.type === 'choice'){
+      lines.push(`🔧${it.name}-${s.choice}${s.amount}`);
+    } else if(it.type === 'spec'){
+      const specPart = s.spec ? s.spec + ' ' : '';
+      const noteSuffix = it.noteSuffix ? ' ' + it.noteSuffix : '';
+      lines.push(`🔧${it.name}-${specPart}${s.amount || 0}${noteSuffix}`);
+    } else if(it.type === 'flag'){
+      lines.push(`🔧${it.name}-${it.suffix}`);
+    }
+  });
+
+  otherItems.forEach(row => {
+    if(!row.spec && !row.amount) return;
+    const amt = parseInt(row.amount, 10) || 0;
+    total += amt;
+    const specPart = row.spec ? row.spec + ' ' : '';
+    lines.push(`🔧其他項目-${specPart}${amt}`);
+  });
+
+  const amounts = ITEMS.filter(it => state[it.id].checked && it.type !== 'flag').map(it => parseInt(state[it.id].amount,10)||0);
+  otherItems.forEach(row => {
+    if(!row.spec && !row.amount) return;
+    amounts.push(parseInt(row.amount,10)||0);
+  });
+  const sumFormula = amounts.join('+');
+  const totalFormatted = total.toLocaleString('en-US');
+
+  const msg =
+`您好${name ? ' ' + name + ' ' : '，'}這是您這次大保養的維修項目與金額
+
+📝車號:${plate}
+📅保養日期: ${date}
+🚩里程:${mileage}
+
+${lines.join('\n')}
+
+${sumFormula}
+= *${totalFormatted}*
+
+以上為回覆紀錄可不用回覆我唷🙏`;
+
+  document.getElementById('outputText').value = msg;
+  document.getElementById('totalAmount').textContent = '$' + totalFormatted;
+
+  document.getElementById('outputWrap').classList.add('show');
+  document.getElementById('outputWrap').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+function copyText(text, btn){
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '已複製 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '已複製 ✓';
+    setTimeout(() => { btn.textContent = btn.getAttribute('data-original'); }, 1800);
+  });
+}
+
+document.getElementById('copyBtn').addEventListener('click', function(){
+  copyText(document.getElementById('outputText').value, this);
+});
+</script>
+</body>
+</html>
