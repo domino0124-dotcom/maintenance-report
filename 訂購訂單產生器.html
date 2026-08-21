@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>訂購訂單產生器</title>
+<title>訂貨單產生器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -23,125 +23,62 @@
   body{
     margin:0;
     background:var(--bg);
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(36,31,27,0.05) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(36,31,27,0.05) 1px, transparent 0);
     background-size: 22px 22px;
     font-family:'Noto Sans TC', sans-serif;
     color:var(--ink);
     padding:20px 14px 60px;
   }
-  .wrap{max-width:560px;margin:0 auto;}
-
+  .wrap{max-width:620px;margin:0 auto;}
   header{margin-bottom:20px;}
   .eyebrow{
     font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    letter-spacing:0.12em;
-    color:var(--accent-dark);
-    text-transform:uppercase;
-    display:flex;
-    align-items:center;
-    gap:8px;
+    font-size:12px;letter-spacing:0.12em;color:var(--accent-dark);
+    text-transform:uppercase;display:flex;align-items:center;gap:8px;
   }
-  .eyebrow::before{
-    content:"";
-    width:18px;height:2px;background:var(--accent);display:inline-block;
-  }
-  h1{
-    font-size:26px;
-    font-weight:900;
-    margin:8px 0 4px;
-    letter-spacing:0.01em;
-  }
+  .eyebrow::before{content:"";width:18px;height:2px;background:var(--accent);display:inline-block;}
+  h1{font-size:26px;font-weight:900;margin:8px 0 4px;letter-spacing:0.01em;}
   .desc{color:var(--sub);font-size:14px;line-height:1.5;}
 
   .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px;
-    margin-bottom:14px;
-    box-shadow: 0 1px 2px rgba(36,31,27,0.04);
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px;margin-bottom:14px;box-shadow: 0 1px 2px rgba(36,31,27,0.04);
   }
   .card h2{
-    font-size:13px;
-    font-weight:700;
-    color:var(--accent-dark);
-    text-transform:uppercase;
-    letter-spacing:0.08em;
-    margin:0 0 14px;
-    display:flex;
-    align-items:center;
-    gap:6px;
+    font-size:13px;font-weight:700;color:var(--accent-dark);text-transform:uppercase;
+    letter-spacing:0.08em;margin:0 0 14px;display:flex;align-items:center;gap:6px;
   }
-
   .row{display:flex;gap:10px;margin-bottom:10px;}
   .field{flex:1;display:flex;flex-direction:column;gap:6px;}
   .field label{font-size:12px;color:var(--sub);font-weight:500;}
-  .field input{
-    border:1.5px solid var(--line);
-    border-radius:10px;
-    padding:10px 12px;
-    font-size:15px;
-    font-family:inherit;
-    color:var(--ink);
-    background:#FCFAF6;
-    width:100%;
+  .field input, .field select{
+    border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-size:15px;font-family:inherit;color:var(--ink);background:#FCFAF6;width:100%;
   }
-  .field input:focus{outline:none;border-color:var(--accent);}
+  .field input:focus, .field select:focus{outline:none;border-color:var(--accent);}
 
   .item-row{
-    border:1.5px dashed var(--line);
-    border-radius:12px;
-    padding:12px;
-    margin-bottom:10px;
-    background:#FCFAF6;
+    border:1.5px dashed var(--line);border-radius:12px;padding:12px;
+    margin-bottom:10px;background:#FCFAF6;
   }
   .item-row .row{margin-bottom:8px;}
   .item-row .row:last-child{margin-bottom:0;}
   .item-row .field label{font-size:11px;}
   .remove-btn{
-    flex-shrink:0;
-    width:36px;height:36px;
-    border-radius:8px;
-    border:1.5px solid var(--line);
-    background:#fff;
-    color:var(--sub);
-    font-size:14px;
-    cursor:pointer;
+    flex-shrink:0;width:36px;height:36px;border-radius:8px;border:1.5px solid var(--line);
+    background:#fff;color:var(--sub);font-size:14px;cursor:pointer;
   }
   .remove-btn:hover{border-color:#C0392B;color:#C0392B;}
-
   .add-btn{
-    width:100%;
-    background:#fff;
-    border:1.5px dashed var(--accent);
-    color:var(--accent-dark);
-    border-radius:10px;
-    padding:12px;
-    font-size:14px;
-    font-weight:700;
-    font-family:inherit;
-    cursor:pointer;
+    width:100%;background:#fff;border:1.5px dashed var(--accent);color:var(--accent-dark);
+    border-radius:10px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
   }
   .add-btn:hover{background:var(--accent-soft);}
 
   .generate-btn{
-    width:100%;
-    background:var(--ink);
-    color:#fff;
-    border:none;
-    border-radius:12px;
-    padding:16px;
-    font-size:16px;
-    font-weight:700;
-    font-family:inherit;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    margin-top:4px;
+    width:100%;background:var(--ink);color:#fff;border:none;border-radius:12px;padding:16px;
+    font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;
     transition: transform .1s, background .15s;
   }
   .generate-btn:active{transform:scale(0.98);}
@@ -150,87 +87,129 @@
   .output-wrap{display:none;}
   .output-wrap.show{display:block;}
   textarea{
-    width:100%;
-    min-height:240px;
-    border:1.5px solid var(--line);
-    border-radius:12px;
-    padding:14px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:13.5px;
-    line-height:1.7;
-    color:var(--ink);
-    background:#FCFAF6;
-    resize:vertical;
+    width:100%;min-height:220px;border:1.5px solid var(--line);border-radius:12px;padding:14px;
+    font-family:'JetBrains Mono', monospace;font-size:13.5px;line-height:1.7;color:var(--ink);
+    background:#FCFAF6;resize:vertical;
   }
   .total-box{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:var(--ok-soft);
-    border:1.5px solid var(--ok);
-    border-radius:12px;
-    padding:12px 16px;
-    margin-top:14px;
+    display:flex;align-items:center;justify-content:space-between;background:var(--ok-soft);
+    border:1.5px solid var(--ok);border-radius:12px;padding:12px 16px;margin-top:14px;
   }
   .total-box .label{font-size:13px;color:var(--sub);}
   .total-box .amount{font-size:20px;font-weight:900;color:var(--ok);font-family:'JetBrains Mono', monospace;}
   .copy-btn{
-    width:100%;
-    background:var(--ok);
-    color:#fff;
-    border:none;
-    border-radius:12px;
-    padding:14px;
-    font-size:15px;
-    font-weight:700;
-    font-family:inherit;
-    cursor:pointer;
-    margin-top:10px;
+    width:100%;background:var(--ok);color:#fff;border:none;border-radius:12px;padding:14px;
+    font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:10px;
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
   .copy-btn.copied{background:var(--ink);}
-  .hint{
-    font-size:12px;
-    color:var(--sub);
-    text-align:center;
-    margin-top:8px;
+  .pdf-btn{
+    width:100%;background:#fff;border:1.5px solid var(--ink);color:var(--ink);border-radius:12px;
+    padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:10px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
   }
+  .pdf-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
+  .pdf-btn.working{opacity:0.6;pointer-events:none;}
+  .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:8px;}
+
+  /* ---- Printable 訂貨單 template, hidden on screen, shown only when printing ---- */
+  #receiptContent{ display:none; background:#ffffff; color:#1a1a1a; font-family:'Noto Sans TC', sans-serif; }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #receiptContent, #receiptContent *{ visibility:visible; }
+    #receiptContent{
+      display:block !important;
+      position:absolute; left:0; top:0; width:100%;
+      padding:24px 30px;
+    }
+    @page{ margin:12mm; }
+  }
+  .doc-shopname{text-align:center;font-size:20px;font-weight:900;letter-spacing:0.05em;}
+  .doc-titlebar{
+    display:flex;align-items:center;justify-content:space-between;margin:6px 0 18px;
+  }
+  .doc-titlebar .side{font-size:13px;width:220px;}
+  .doc-titlebar .title{font-size:26px;font-weight:900;letter-spacing:0.15em;}
+  .doc-meta{
+    display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;
+  }
+  .doc-meta .left div, .doc-meta .right div{margin-bottom:4px;}
+  table.doc-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;}
+  table.doc-table th{
+    border-top:2px solid #1a1a1a;border-bottom:1.5px solid #1a1a1a;
+    padding:8px 6px;font-weight:700;text-align:left;background:#fafafa;
+  }
+  table.doc-table td{padding:7px 6px;border-bottom:1px solid #e5e5e5;}
+  table.doc-table th:nth-child(1), table.doc-table td:nth-child(1){width:32px;text-align:center;}
+  table.doc-table th:nth-child(4), table.doc-table td:nth-child(4){width:56px;text-align:center;}
+  table.doc-table th:nth-child(5), table.doc-table td:nth-child(5){width:80px;text-align:right;}
+  table.doc-table th:nth-child(6), table.doc-table td:nth-child(6){width:80px;text-align:right;}
+  table.doc-table .deposit-row td{color:#B84C15;font-weight:700;}
+  .doc-total{
+    text-align:right;font-size:18px;font-weight:900;margin-top:16px;padding-top:10px;
+    border-top:2px solid #1a1a1a;
+  }
+  .doc-notes{margin-top:26px;font-size:12px;line-height:2;display:flex;gap:16px;}
+  .doc-notes .items{flex:1;}
+  .doc-notes .label{writing-mode:vertical-rl;font-weight:700;letter-spacing:0.3em;font-size:13px;padding-top:4px;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">韋德機車精品 · 訂購訂單</div>
-    <h1>訂購訂單產生器</h1>
-    <div class="desc">填客人資料＋商品明細，自動算總金額，複製貼到 LINE 傳給客人確認。</div>
+    <div class="eyebrow">韋德機車精品 · 訂貨單</div>
+    <h1>訂貨單產生器</h1>
+    <div class="desc">填客戶與商品資料，產生正式訂貨單 PDF，同時可複製文字訊息傳給客人。</div>
   </header>
 
   <div class="card">
-    <h2>客人資料</h2>
+    <h2>單據資訊</h2>
     <div class="row">
       <div class="field">
-        <label>姓名 / 稱呼</label>
-        <input type="text" id="customerName" placeholder="不知道可留空">
-      </div>
-      <div class="field">
-        <label>電話</label>
-        <input type="text" id="phone" placeholder="例如：0912345678">
+        <label>日期時間</label>
+        <input type="datetime-local" id="orderTime">
       </div>
     </div>
     <div class="row">
       <div class="field">
-        <label>車號</label>
-        <input type="text" id="plateNo" placeholder="例如：ABC-1234">
+        <label>付款方式</label>
+        <select id="payMethod">
+          <option value="現金">現金</option>
+          <option value="轉帳">轉帳</option>
+          <option value="行動支付">行動支付</option>
+          <option value="其他">其他（自行輸入）</option>
+        </select>
       </div>
-      <div class="field">
-        <label>訂購時間</label>
-        <input type="datetime-local" id="orderTime">
+      <div class="field" id="payOtherWrap" style="display:none;">
+        <label>付款方式（自訂）</label>
+        <input type="text" id="payOther" placeholder="例如：貨到付款">
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>訂購商品</h2>
+    <h2>客戶資料</h2>
+    <div class="row">
+      <div class="field">
+        <label>客戶姓名</label>
+        <input type="text" id="customerName" placeholder="不知道可留空">
+      </div>
+      <div class="field">
+        <label>車號</label>
+        <input type="text" id="plateNo" placeholder="例如：PKG-0123">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>電話</label>
+        <input type="text" id="phone" placeholder="例如：0912345678">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>商品明細</h2>
     <div id="itemsList"></div>
     <button class="add-btn" id="addItemBtn" type="button">＋ 新增商品</button>
   </div>
@@ -239,25 +218,58 @@
     <h2>訂金</h2>
     <div class="row">
       <div class="field">
-        <label>預收訂金</label>
+        <label>預付訂金</label>
         <input type="text" inputmode="numeric" id="deposit" placeholder="0">
       </div>
     </div>
   </div>
 
-  <button class="generate-btn" id="generateBtn">
-    產生訂單訊息
-  </button>
+  <button class="generate-btn" id="generateBtn">產生訂貨單</button>
 
   <div class="output-wrap card" id="outputWrap" style="margin-top:14px;">
-    <h2>訂單訊息</h2>
+    <h2>傳給客人的文字訊息</h2>
     <textarea id="outputText"></textarea>
     <div class="total-box">
-      <div class="label">訂單總金額</div>
+      <div class="label">應收款</div>
       <div class="amount" id="totalAmount">$0</div>
     </div>
-    <button class="copy-btn" id="copyBtn">複製訊息</button>
-    <div class="hint">複製後貼到 LINE 聊天視窗發送給客人</div>
+    <button class="copy-btn" id="copyBtn">複製文字訊息</button>
+    <button class="pdf-btn" id="pdfBtn">列印 / 存成 PDF</button>
+    <div class="hint">文字訊息貼到 LINE；「列印/存成PDF」會開啟列印視窗，選「存為PDF」即可下載</div>
+  </div>
+</div>
+
+<div id="receiptContent">
+  <div class="doc-shopname">韋德機車精品</div>
+  <div class="doc-titlebar">
+    <div class="side"></div>
+    <div class="title">訂貨單</div>
+    <div class="side" style="text-align:right;">TEL: 02-2998-7231</div>
+  </div>
+  <div class="doc-meta">
+    <div class="left">
+      <div>客戶：<span id="dCustomer"></span>　　車號：<span id="dPlate"></span></div>
+      <div>電話：<span id="dPhone"></span></div>
+    </div>
+    <div class="right" style="text-align:right;">
+      <div>日期：<span id="dDate"></span></div>
+      <div>付款方式：<span id="dPay"></span></div>
+    </div>
+  </div>
+  <table class="doc-table">
+    <thead>
+      <tr><th>No</th><th>品名</th><th>規格</th><th>數量</th><th>售價</th><th>小計</th><th>備註</th></tr>
+    </thead>
+    <tbody id="dItemsBody"></tbody>
+  </table>
+  <div class="doc-total">應收款：<span id="dTotal"></span> 元</div>
+  <div class="doc-notes">
+    <div class="items">
+      <div>(一)款項未結清之前，產品仍屬於本公司所有。</div>
+      <div>(二)取貨時請帶本貨單。</div>
+      <div>(三)若商品已跟工廠下訂，若客戶要退訂，原因無法已等太久、不想要、出車禍、沒生活費等理由，訂金一律不退回。</div>
+    </div>
+    <div class="label">備　註</div>
   </div>
 </div>
 
@@ -265,7 +277,7 @@
 let orderItems = [];
 
 function addItem(){
-  orderItems.push({ name:'', qty:'', amount:'' });
+  orderItems.push({ name:'', spec:'', qty:'1', price:'', note:'' });
   renderItems();
 }
 function removeItem(idx){
@@ -280,9 +292,13 @@ function renderItems(){
     div.className = 'item-row';
     div.innerHTML = `
       <div class="row">
-        <div class="field">
+        <div class="field" style="flex:2;">
           <label>品名 ${idx+1}</label>
-          <input type="text" data-idx="${idx}" data-field="name" placeholder="例如：KOSO 快速油封" value="${row.name}">
+          <input type="text" data-idx="${idx}" data-field="name" placeholder="例如：BREMBO 基本對四卡鉗" value="${row.name}">
+        </div>
+        <div class="field" style="flex:1.5;">
+          <label>規格</label>
+          <input type="text" data-idx="${idx}" data-field="spec" placeholder="例如：黑底紅字" value="${row.spec}">
         </div>
       </div>
       <div class="row">
@@ -291,8 +307,12 @@ function renderItems(){
           <input type="text" inputmode="numeric" data-idx="${idx}" data-field="qty" placeholder="1" value="${row.qty}">
         </div>
         <div class="field" style="flex:1;">
-          <label>金額</label>
-          <input type="text" inputmode="numeric" data-idx="${idx}" data-field="amount" placeholder="0" value="${row.amount}">
+          <label>售價</label>
+          <input type="text" inputmode="numeric" data-idx="${idx}" data-field="price" placeholder="0" value="${row.price}">
+        </div>
+        <div class="field" style="flex:1.6;">
+          <label>備註</label>
+          <input type="text" data-idx="${idx}" data-field="note" placeholder="選填" value="${row.note}">
         </div>
         <button class="remove-btn" data-remove="${idx}" type="button">✕</button>
       </div>
@@ -312,12 +332,18 @@ function renderItems(){
     });
   });
 }
-
 renderItems();
 document.getElementById('addItemBtn').addEventListener('click', addItem);
-addItem(); // start with one empty row
+addItem();
 
-// default order time = now
+// pay method other toggle
+const payMethod = document.getElementById('payMethod');
+const payOtherWrap = document.getElementById('payOtherWrap');
+payMethod.addEventListener('change', () => {
+  payOtherWrap.style.display = payMethod.value === '其他' ? 'flex' : 'none';
+});
+
+// defaults: order time = now, order no auto-generated
 const orderTimeInput = document.getElementById('orderTime');
 function pad(n){ return n.toString().padStart(2,'0'); }
 const now = new Date();
@@ -330,35 +356,41 @@ function formatOrderTime(str){
   return `${y}/${m}/${d} ${timePart}`;
 }
 
-document.getElementById('generateBtn').addEventListener('click', () => {
+function computeOrderData(){
   const name = document.getElementById('customerName').value.trim();
   const phone = document.getElementById('phone').value.trim();
   const plate = document.getElementById('plateNo').value.trim();
   const time = formatOrderTime(orderTimeInput.value);
+  const pay = payMethod.value === '其他' ? (document.getElementById('payOther').value.trim() || '其他') : payMethod.value;
 
-  let lines = [];
-  let total = 0;
-  let sumParts = [];
+  let items = [];
+  let itemsSubtotal = 0;
 
   orderItems.forEach(row => {
-    if(!row.name && !row.amount) return;
+    if(!row.name && !row.price) return;
     const qty = parseInt(row.qty,10) || 1;
-    const amt = parseInt(row.amount,10) || 0;
-    total += amt;
-    sumParts.push(amt);
-    lines.push(`📦${row.name || '未命名商品'} x${qty} - ${amt}`);
+    const price = parseInt(row.price,10) || 0;
+    const subtotal = qty * price;
+    itemsSubtotal += subtotal;
+    items.push({ name: row.name || '未命名商品', spec: row.spec, qty, price, subtotal, note: row.note });
   });
 
-  const totalFormatted = total.toLocaleString('en-US');
-  const sumFormula = sumParts.join('+');
-
   const deposit = parseInt(document.getElementById('deposit').value, 10) || 0;
-  const balance = total - deposit;
-  const depositFormatted = deposit.toLocaleString('en-US');
+  const balance = itemsSubtotal - deposit;
+
+  return { name, phone, plate, time, pay, items, itemsSubtotal, deposit, balance };
+}
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const data = computeOrderData();
+  const { name, phone, plate, time, items, itemsSubtotal, deposit, balance } = data;
+
+  const lines = items.map(it => `📦${it.name}${it.spec ? '('+it.spec+')' : ''} x${it.qty} - ${it.subtotal.toLocaleString('en-US')}`);
   const balanceFormatted = balance.toLocaleString('en-US');
+  const depositFormatted = deposit.toLocaleString('en-US');
 
   const msg =
-`您好${name ? ' ' + name + ' ' : '，'}這是您訂購的商品明細
+`您好${name ? ' ' + name + ' ' : '，'}這是您這次的訂購明細
 
 📞電話:${phone}
 🏍️車號:${plate}
@@ -366,14 +398,13 @@ document.getElementById('generateBtn').addEventListener('click', () => {
 
 ${lines.join('\n')}
 
-💵總金額: *${totalFormatted}*
 💰已收訂金: ${depositFormatted}
-📌待付餘款: *${balanceFormatted}*
+📌應收款: *${balanceFormatted}*
 
-以上為訂購紀錄，商品到貨會再通知您唷🙏`;
+詳細訂貨單已另外附上，取貨時請攜帶，謝謝您的訂購🙏`;
 
   document.getElementById('outputText').value = msg;
-  document.getElementById('totalAmount').textContent = '$' + totalFormatted;
+  document.getElementById('totalAmount').textContent = '$' + balanceFormatted;
   document.getElementById('outputWrap').classList.add('show');
   document.getElementById('outputWrap').scrollIntoView({behavior:'smooth', block:'start'});
 });
@@ -394,8 +425,40 @@ document.getElementById('copyBtn').addEventListener('click', function(){
     document.execCommand('copy');
     document.body.removeChild(ta);
     btn.textContent = '已複製 ✓';
-    setTimeout(() => { btn.textContent = '複製訊息'; }, 1800);
+    setTimeout(() => { btn.textContent = '複製文字訊息'; }, 1800);
   });
+});
+
+document.getElementById('pdfBtn').addEventListener('click', function(){
+  const data = computeOrderData();
+  if(data.items.length === 0){
+    alert('請先至少填一項商品');
+    return;
+  }
+
+  document.getElementById('dCustomer').textContent = data.name || '—';
+  document.getElementById('dPlate').textContent = data.plate || '—';
+  document.getElementById('dPhone').textContent = data.phone || '—';
+  document.getElementById('dDate').textContent = data.time || '—';
+  document.getElementById('dPay').textContent = data.pay || '—';
+
+  const body = document.getElementById('dItemsBody');
+  body.innerHTML = '';
+  data.items.forEach((it, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${it.name}</td><td>${it.spec || ''}</td><td>${it.qty}</td><td>${it.price.toLocaleString('en-US')}</td><td>${it.subtotal.toLocaleString('en-US')}</td><td>${it.note || ''}</td>`;
+    body.appendChild(tr);
+  });
+  if(data.deposit > 0){
+    const tr = document.createElement('tr');
+    tr.className = 'deposit-row';
+    tr.innerHTML = `<td>${data.items.length+1}</td><td>預付訂金</td><td></td><td>1</td><td>-${data.deposit.toLocaleString('en-US')}</td><td>-${data.deposit.toLocaleString('en-US')}</td><td></td>`;
+    body.appendChild(tr);
+  }
+
+  document.getElementById('dTotal').textContent = data.balance.toLocaleString('en-US');
+
+  window.print();
 });
 </script>
 </body>
