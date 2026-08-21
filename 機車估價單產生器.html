@@ -199,15 +199,10 @@
   </div>
 
   <div class="card">
-    <h2>付款方式與總價</h2>
+    <h2>付款方式</h2>
     <div class="row">
       <div class="field">
-        <label>付款方式</label>
         <input type="text" id="payMethod" placeholder="例如：現金 / 轉帳 / 保險理賠">
-      </div>
-      <div class="field">
-        <label>總價</label>
-        <input type="text" inputmode="numeric" id="totalInput" placeholder="0">
       </div>
     </div>
   </div>
@@ -216,10 +211,6 @@
 
   <div class="output-wrap card" id="outputWrap" style="margin-top:14px;">
     <h2>估價單</h2>
-    <div class="total-box">
-      <div class="label">總價</div>
-      <div class="amount" id="totalAmount">$0</div>
-    </div>
     <textarea id="outputText"></textarea>
     <button class="copy-btn" id="copyBtn">複製文字訊息</button>
     <button class="pdf-btn" id="showBtn">顯示估價單（可截圖）</button>
@@ -239,7 +230,6 @@
     <div class="q-items-block" id="qItemsBlock" style="white-space:pre-wrap;font-size:13px;line-height:1.9;border-top:2px solid #1a1a1a;border-bottom:1.5px solid #1a1a1a;padding:10px 2px;margin-bottom:10px;"></div>
     <div class="q-pay-total">
       <div>付款方式：<span id="qPay"></span></div>
-      <div class="total-amt">總價：$<span id="qTotal"></span></div>
     </div>
     <div class="q-notes">
       <div>1.如估價完成報價日起停置至一個月，尚未通知車輛是否維修，本公司將收取保管費用及拖運費用，重型車輛：每月1500元、小型車輛：每月500元。</div>
@@ -275,14 +265,12 @@ function computeData(){
   const pay = document.getElementById('payMethod').value.trim();
   const date = formatDate(quoteDateInput.value);
   const itemsText = document.getElementById('itemsNotes').value.trim();
-  const total = parseInt(document.getElementById('totalInput').value, 10) || 0;
 
-  return { owner, plate, model, pay, date, itemsText, total };
+  return { owner, plate, model, pay, date, itemsText };
 }
 
 document.getElementById('generateBtn').addEventListener('click', () => {
   const data = computeData();
-  document.getElementById('totalAmount').textContent = '$' + data.total.toLocaleString('en-US');
 
   const msg =
 `您好${data.owner ? ' ' + data.owner + ' ' : '，'}這是您車輛的估價明細
@@ -294,7 +282,6 @@ document.getElementById('generateBtn').addEventListener('click', () => {
 ${data.itemsText}
 
 💳付款方式:${data.pay || '—'}
-💰總價: *${data.total.toLocaleString('en-US')}*
 
 詳細估價單已另外附上，如有問題歡迎詢問🙏`;
 
@@ -339,7 +326,6 @@ document.getElementById('showBtn').addEventListener('click', () => {
   document.getElementById('qItemsBlock').textContent = data.itemsText;
 
   document.getElementById('qPay').textContent = data.pay || '—';
-  document.getElementById('qTotal').textContent = data.total.toLocaleString('en-US');
   document.getElementById('qValidDate').textContent = '____年____月____日';
 
   const quote = document.getElementById('quoteContent');
