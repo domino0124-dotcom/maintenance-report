@@ -54,6 +54,10 @@
   .field input, .field select{
     border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
     font-size:15px;font-family:inherit;color:var(--ink);background:#FCFAF6;width:100%;
+    max-width:100%;
+  }
+  .field input[type="datetime-local"]{
+    font-size:14px;
   }
   .field input:focus, .field select:focus{outline:none;border-color:var(--accent);}
 
@@ -112,48 +116,45 @@
   .pdf-btn.working{opacity:0.6;pointer-events:none;}
   .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:8px;}
 
-  /* ---- Printable 訂貨單 template, hidden on screen, shown only when printing ---- */
-  #receiptContent{ display:none; background:#ffffff; color:#1a1a1a; font-family:'Noto Sans TC', sans-serif; }
-
-  @media print{
-    body *{ visibility:hidden; }
-    #receiptContent, #receiptContent *{ visibility:visible; }
-    #receiptContent{
-      display:block !important;
-      position:absolute; left:0; top:0; width:100%;
-      padding:24px 30px;
-    }
-    @page{ margin:12mm; }
+  /* ---- 訂貨單樣式，產生後直接顯示在畫面上，方便截圖 ---- */
+  #receiptContent{
+    display:none;
+    background:#ffffff;color:#1a1a1a;font-family:'Noto Sans TC', sans-serif;
+    border-radius:16px;padding:20px 16px;margin-top:14px;
+    border:1px solid var(--line);
   }
-  .doc-shopname{text-align:center;font-size:20px;font-weight:900;letter-spacing:0.05em;}
-  .doc-titlebar{
-    display:flex;align-items:center;justify-content:space-between;margin:6px 0 18px;
-  }
-  .doc-titlebar .side{font-size:13px;width:220px;}
-  .doc-titlebar .title{font-size:26px;font-weight:900;letter-spacing:0.15em;}
-  .doc-meta{
-    display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;
-  }
-  .doc-meta .left div, .doc-meta .right div{margin-bottom:4px;}
-  table.doc-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;}
+  #receiptContent.show{ display:block; }
+  .doc-shopname{text-align:center;font-size:18px;font-weight:900;letter-spacing:0.05em;}
+  .doc-titlebar{ text-align:center; margin:4px 0 16px; }
+  .doc-titlebar .title{font-size:20px;font-weight:900;letter-spacing:0.15em;}
+  .doc-titlebar .tel{font-size:12px;color:#666;margin-top:2px;}
+  .doc-meta{ font-size:12.5px; margin-bottom:6px; line-height:1.9; }
+  .doc-meta div{ display:flex; justify-content:space-between; border-bottom:1px dotted #e5e5e5; padding:2px 0; }
+  .doc-meta div span:first-child{ color:#8A8078; }
+  .doc-meta div span:last-child{ font-weight:500; }
+  .doc-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:12px; }
+  table.doc-table{width:100%;min-width:480px;border-collapse:collapse;font-size:12px;}
   table.doc-table th{
     border-top:2px solid #1a1a1a;border-bottom:1.5px solid #1a1a1a;
-    padding:8px 6px;font-weight:700;text-align:left;background:#fafafa;
+    padding:7px 5px;font-weight:700;text-align:left;background:#fafafa;white-space:nowrap;
   }
-  table.doc-table td{padding:7px 6px;border-bottom:1px solid #e5e5e5;}
-  table.doc-table th:nth-child(1), table.doc-table td:nth-child(1){width:32px;text-align:center;}
-  table.doc-table th:nth-child(4), table.doc-table td:nth-child(4){width:56px;text-align:center;}
-  table.doc-table th:nth-child(5), table.doc-table td:nth-child(5){width:80px;text-align:right;}
-  table.doc-table th:nth-child(6), table.doc-table td:nth-child(6){width:80px;text-align:right;}
+  table.doc-table td{padding:6px 5px;border-bottom:1px solid #e5e5e5;}
+  table.doc-table th:nth-child(1), table.doc-table td:nth-child(1){width:26px;text-align:center;}
+  table.doc-table th:nth-child(4), table.doc-table td:nth-child(4){width:44px;text-align:center;}
+  table.doc-table th:nth-child(5), table.doc-table td:nth-child(5){width:66px;text-align:right;}
+  table.doc-table th:nth-child(6), table.doc-table td:nth-child(6){width:66px;text-align:right;}
   table.doc-table .deposit-row td{color:#B84C15;font-weight:700;}
   .doc-total{
-    text-align:right;font-size:18px;font-weight:900;margin-top:16px;padding-top:10px;
+    text-align:right;font-size:17px;font-weight:900;margin-top:14px;padding-top:10px;
     border-top:2px solid #1a1a1a;
   }
-  .doc-notes{margin-top:26px;font-size:12px;line-height:2;display:flex;gap:16px;}
-  .doc-notes .items{flex:1;}
-  .doc-notes .label{writing-mode:vertical-rl;font-weight:700;letter-spacing:0.3em;font-size:13px;padding-top:4px;}
+  .doc-notes{margin-top:20px;font-size:11px;line-height:1.9;}
+  .doc-notes .notes-title{font-weight:700;letter-spacing:0.2em;font-size:12px;margin-bottom:6px;}
 </style>
+<style>
+  #screenshotHint{
+    text-align:center;font-size:12px;color:var(--sub);margin-top:10px;
+  }
 </head>
 <body>
 <div class="wrap">
@@ -234,42 +235,38 @@
       <div class="amount" id="totalAmount">$0</div>
     </div>
     <button class="copy-btn" id="copyBtn">複製文字訊息</button>
-    <button class="pdf-btn" id="pdfBtn">列印 / 存成 PDF</button>
-    <div class="hint">文字訊息貼到 LINE；「列印/存成PDF」會開啟列印視窗，選「存為PDF」即可下載</div>
+    <button class="pdf-btn" id="pdfBtn">顯示訂貨單（可截圖）</button>
+    <div class="hint">文字訊息貼到 LINE；訂貨單截圖後傳給客人或自己留底</div>
   </div>
-</div>
 
-<div id="receiptContent">
-  <div class="doc-shopname">韋德機車精品</div>
-  <div class="doc-titlebar">
-    <div class="side"></div>
-    <div class="title">訂貨單</div>
-    <div class="side" style="text-align:right;">TEL: 02-2998-7231</div>
-  </div>
-  <div class="doc-meta">
-    <div class="left">
-      <div>客戶：<span id="dCustomer"></span>　　車號：<span id="dPlate"></span></div>
-      <div>電話：<span id="dPhone"></span></div>
+  <div id="receiptContent">
+    <div class="doc-shopname">韋德機車精品</div>
+    <div class="doc-titlebar">
+      <div class="title">訂　貨　單</div>
+      <div class="tel">TEL: 02-2998-7231</div>
     </div>
-    <div class="right" style="text-align:right;">
-      <div>日期：<span id="dDate"></span></div>
-      <div>付款方式：<span id="dPay"></span></div>
+    <div class="doc-meta">
+      <div><span>客戶</span><span id="dCustomer"></span></div>
+      <div><span>車號</span><span id="dPlate"></span></div>
+      <div><span>電話</span><span id="dPhone"></span></div>
+      <div><span>日期</span><span id="dDate"></span></div>
+      <div><span>付款方式</span><span id="dPay"></span></div>
     </div>
-  </div>
-  <table class="doc-table">
+    <div class="doc-table-wrap">
+    <table class="doc-table">
     <thead>
       <tr><th>No</th><th>品名</th><th>規格</th><th>數量</th><th>售價</th><th>小計</th><th>備註</th></tr>
     </thead>
     <tbody id="dItemsBody"></tbody>
-  </table>
-  <div class="doc-total">應收款：<span id="dTotal"></span> 元</div>
-  <div class="doc-notes">
-    <div class="items">
+    </table>
+    </div>
+    <div class="doc-total">應收款：<span id="dTotal"></span> 元</div>
+    <div class="doc-notes">
+      <div class="notes-title">備　　註</div>
       <div>(一)款項未結清之前，產品仍屬於本公司所有。</div>
       <div>(二)取貨時請帶本貨單。</div>
       <div>(三)若商品已跟工廠下訂，若客戶要退訂，原因無法已等太久、不想要、出車禍、沒生活費等理由，訂金一律不退回。</div>
     </div>
-    <div class="label">備　註</div>
   </div>
 </div>
 
@@ -458,7 +455,9 @@ document.getElementById('pdfBtn').addEventListener('click', function(){
 
   document.getElementById('dTotal').textContent = data.balance.toLocaleString('en-US');
 
-  window.print();
+  const receipt = document.getElementById('receiptContent');
+  receipt.classList.add('show');
+  receipt.scrollIntoView({behavior:'smooth', block:'start'});
 });
 </script>
 </body>
