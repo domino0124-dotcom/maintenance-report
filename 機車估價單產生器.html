@@ -51,7 +51,7 @@
     border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
     font-size:15px;font-family:inherit;color:var(--ink);background:#FCFAF6;width:100%;max-width:100%;
   }
-  .field input[type="date"]{ font-size:14px; }
+  .field input[type="date"]{ font-size:13px; padding:9px 8px; }
   .field input:focus, .field select:focus{outline:none;border-color:var(--accent);}
 
   .check-row{display:flex;gap:16px;margin-bottom:4px;flex-wrap:wrap;}
@@ -111,6 +111,17 @@
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
   .pdf-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
+  .copy-btn{
+    width:100%;background:var(--ok);color:#fff;border:none;border-radius:12px;padding:14px;
+    font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:10px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .copy-btn.copied{background:var(--ink);}
+  #outputText{
+    width:100%;min-height:200px;border:1.5px solid var(--line);border-radius:12px;padding:14px;
+    font-family:'JetBrains Mono', monospace;font-size:13px;line-height:1.7;color:var(--ink);
+    background:#FCFAF6;resize:vertical;
+  }
   .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:8px;}
 
   /* ---- 估價單樣式，顯示在畫面上供截圖 ---- */
@@ -122,10 +133,10 @@
   .q-shopname{text-align:center;font-size:19px;font-weight:900;letter-spacing:0.1em;margin-bottom:14px;}
   .q-checks{display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;}
   .q-checks span{margin-right:4px;}
-  .q-meta{ font-size:12px; line-height:2; border-top:1px solid #1a1a1a; border-bottom:1px solid #1a1a1a; padding:6px 0; margin-bottom:10px; }
-  .q-meta div{ display:flex; justify-content:space-between; border-bottom:1px dotted #e5e5e5; padding:2px 0; }
-  .q-meta div span:first-child{ color:#8A8078; }
-  .q-meta div span:last-child{ font-weight:500; }
+  .q-meta{ font-size:15px; line-height:2.1; border-top:1px solid #1a1a1a; border-bottom:1px solid #1a1a1a; padding:8px 0; margin-bottom:10px; }
+  .q-meta div{ display:flex; justify-content:space-between; border-bottom:1px dotted #e5e5e5; padding:4px 0; }
+  .q-meta div span:first-child{ color:#8A8078; font-size:13px; }
+  .q-meta div span:last-child{ font-weight:700; font-size:16px; }
   .q-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:10px; }
   table.q-table{width:100%;min-width:420px;border-collapse:collapse;font-size:12px;}
   table.q-table th{
@@ -183,15 +194,19 @@
 
   <div class="card">
     <h2>維修項目</h2>
-    <div id="itemsList"></div>
-    <button class="add-btn" id="addItemBtn" type="button">＋ 新增項目</button>
+    <textarea id="itemsNotes" placeholder="直接打字記錄，按 Enter 換行&#10;例如：&#10;H殼 2000&#10;左右邊蓋 x2 1800&#10;右邊飛旋 550" style="width:100%;min-height:160px;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:14px;font-family:inherit;color:var(--ink);background:#FCFAF6;resize:vertical;line-height:1.8;"></textarea>
   </div>
 
   <div class="card">
-    <h2>付款方式</h2>
+    <h2>付款方式與總價</h2>
     <div class="row">
       <div class="field">
+        <label>付款方式</label>
         <input type="text" id="payMethod" placeholder="例如：現金 / 轉帳 / 保險理賠">
+      </div>
+      <div class="field">
+        <label>總價</label>
+        <input type="text" inputmode="numeric" id="totalInput" placeholder="0">
       </div>
     </div>
   </div>
@@ -204,8 +219,10 @@
       <div class="label">總價</div>
       <div class="amount" id="totalAmount">$0</div>
     </div>
+    <textarea id="outputText"></textarea>
+    <button class="copy-btn" id="copyBtn">複製文字訊息</button>
     <button class="pdf-btn" id="showBtn">顯示估價單（可截圖）</button>
-    <div class="hint">截圖後傳給客人或自己留底</div>
+    <div class="hint">文字訊息貼到 LINE；估價單截圖後傳給客人或自己留底</div>
   </div>
 
   <div id="quoteContent">
@@ -218,12 +235,7 @@
       <div><span>車牌</span><span id="qPlate"></span></div>
       <div><span>車種</span><span id="qModel"></span></div>
     </div>
-    <div class="q-table-wrap">
-    <table class="q-table">
-      <thead><tr><th>No</th><th>品名</th><th>備註</th><th>數量</th><th>單價</th><th>金額</th></tr></thead>
-      <tbody id="qItemsBody"></tbody>
-    </table>
-    </div>
+    <div class="q-items-block" id="qItemsBlock" style="white-space:pre-wrap;font-size:13px;line-height:1.9;border-top:2px solid #1a1a1a;border-bottom:1.5px solid #1a1a1a;padding:10px 2px;margin-bottom:10px;"></div>
     <div class="q-pay-total">
       <div>付款方式：<span id="qPay"></span></div>
       <div class="total-amt">總價：$<span id="qTotal"></span></div>
@@ -243,64 +255,6 @@
 </div>
 
 <script>
-let orderItems = [];
-
-function addItem(){
-  orderItems.push({ name:'', note:'', qty:'1', price:'' });
-  renderItems();
-}
-function removeItem(idx){
-  orderItems.splice(idx,1);
-  renderItems();
-}
-function renderItems(){
-  const wrap = document.getElementById('itemsList');
-  wrap.innerHTML = '';
-  orderItems.forEach((row, idx) => {
-    const div = document.createElement('div');
-    div.className = 'item-row';
-    div.innerHTML = `
-      <div class="row">
-        <div class="field" style="flex:2.2;">
-          <label>品名 ${idx+1}</label>
-          <input type="text" data-idx="${idx}" data-field="name" placeholder="例如：H殼" value="${row.name}">
-        </div>
-        <div class="field" style="flex:0.7;">
-          <label>數量</label>
-          <input type="text" inputmode="numeric" data-idx="${idx}" data-field="qty" placeholder="1" value="${row.qty}">
-        </div>
-        <div class="field" style="flex:1;">
-          <label>單價</label>
-          <input type="text" inputmode="numeric" data-idx="${idx}" data-field="price" placeholder="0" value="${row.price}">
-        </div>
-      </div>
-      <div class="row">
-        <div class="field" style="flex:1;">
-          <label>備註</label>
-          <input type="text" data-idx="${idx}" data-field="note" placeholder="選填" value="${row.note}">
-        </div>
-        <button class="remove-btn" data-remove="${idx}" type="button">✕</button>
-      </div>
-    `;
-    wrap.appendChild(div);
-  });
-  wrap.querySelectorAll('input[data-idx]').forEach(el => {
-    el.addEventListener('input', () => {
-      const idx = parseInt(el.getAttribute('data-idx'),10);
-      const field = el.getAttribute('data-field');
-      orderItems[idx][field] = el.value;
-    });
-  });
-  wrap.querySelectorAll('[data-remove]').forEach(el => {
-    el.addEventListener('click', () => {
-      removeItem(parseInt(el.getAttribute('data-remove'),10));
-    });
-  });
-}
-renderItems();
-document.getElementById('addItemBtn').addEventListener('click', addItem);
-addItem();
-
 // default quote date = today
 const quoteDateInput = document.getElementById('quoteDate');
 function pad(n){ return n.toString().padStart(2,'0'); }
@@ -319,32 +273,59 @@ function computeData(){
   const model = document.getElementById('model').value.trim();
   const pay = document.getElementById('payMethod').value.trim();
   const date = formatDate(quoteDateInput.value);
+  const itemsText = document.getElementById('itemsNotes').value.trim();
+  const total = parseInt(document.getElementById('totalInput').value, 10) || 0;
 
-  let items = [];
-  let total = 0;
-  orderItems.forEach(row => {
-    if(!row.name && !row.price) return;
-    const qty = parseInt(row.qty,10) || 1;
-    const price = parseInt(row.price,10) || 0;
-    const subtotal = qty * price;
-    total += subtotal;
-    items.push({ name: row.name || '未命名項目', note: row.note, qty, price, subtotal });
-  });
-
-  return { owner, plate, model, pay, date, items, total };
+  return { owner, plate, model, pay, date, itemsText, total };
 }
 
 document.getElementById('generateBtn').addEventListener('click', () => {
   const data = computeData();
   document.getElementById('totalAmount').textContent = '$' + data.total.toLocaleString('en-US');
+
+  const msg =
+`您好${data.owner ? ' ' + data.owner + ' ' : '，'}這是您車輛的估價明細
+
+🏍️車牌:${data.plate}
+🔧車種:${data.model}
+📅估價日:${data.date}
+
+${data.itemsText}
+
+💳付款方式:${data.pay || '—'}
+💰總價: *${data.total.toLocaleString('en-US')}*
+
+詳細估價單已另外附上，如有問題歡迎詢問🙏`;
+
+  document.getElementById('outputText').value = msg;
   document.getElementById('outputWrap').classList.add('show');
   document.getElementById('outputWrap').scrollIntoView({behavior:'smooth', block:'start'});
 });
 
+document.getElementById('copyBtn').addEventListener('click', function(){
+  const btn = this;
+  const text = document.getElementById('outputText').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = '已複製 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '已複製 ✓';
+    setTimeout(() => { btn.textContent = '複製文字訊息'; }, 1800);
+  });
+});
+
 document.getElementById('showBtn').addEventListener('click', () => {
   const data = computeData();
-  if(data.items.length === 0){
-    alert('請先至少填一項維修項目');
+  if(!data.itemsText){
+    alert('請先填寫維修項目');
     return;
   }
 
@@ -354,13 +335,7 @@ document.getElementById('showBtn').addEventListener('click', () => {
   document.getElementById('qPlate').textContent = data.plate || '—';
   document.getElementById('qModel').textContent = data.model || '—';
 
-  const body = document.getElementById('qItemsBody');
-  body.innerHTML = '';
-  data.items.forEach((it, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td>${it.name}</td><td>${it.note || ''}</td><td>${it.qty}</td><td>${it.price.toLocaleString('en-US')}</td><td>${it.subtotal.toLocaleString('en-US')}</td>`;
-    body.appendChild(tr);
-  });
+  document.getElementById('qItemsBlock').textContent = data.itemsText;
 
   document.getElementById('qPay').textContent = data.pay || '—';
   document.getElementById('qTotal').textContent = data.total.toLocaleString('en-US');
