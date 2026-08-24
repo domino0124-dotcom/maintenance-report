@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>拿貨登記 | 韋德機車精品</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --bg: #12181a;
+    --panel: #1b2426;
+    --panel-2: #232f31;
+    --line: #2d3a3c;
+    --teal: #2dd4bf;
+    --teal-dim: #0f5f56;
+    --amber: #ffb020;
+    --red: #ff5b5b;
+    --text: #eef4f3;
+    --text-dim: #94a5a3;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+    min-height:100vh;}
+  .wrap{max-width:480px; margin:0 auto; padding:0 0 90px;}
+
+  header{
+    padding:22px 20px 18px;
+    background:linear-gradient(180deg, #17201f 0%, var(--bg) 100%);
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:16px; margin:0; font-weight:700;}
+  header .sub{font-size:12px; color:var(--text-dim); margin-top:4px;}
+  .greet{margin-top:10px; font-size:13px; color:var(--text-dim);}
+  .greet b{color:var(--teal);}
+
+  main{padding:18px 16px;}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:600;}
+  .field input, .field select{
+    width:100%; padding:12px 13px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-size:15px; font-family:inherit;
+  }
+  .field select{appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a5a3'><path d='M7 10l5 5 5-5z'/></svg>"); background-repeat:no-repeat; background-position:right 12px center;}
+  .submit-btn{
+    width:100%; padding:14px; border:none; border-radius:12px; background:var(--teal);
+    color:#052420; font-weight:700; font-size:15px; cursor:pointer; margin-top:6px;
+  }
+  .submit-btn:disabled{opacity:.5;}
+  .msg-box{margin-top:14px; padding:12px 14px; border-radius:10px; font-size:13.5px; display:none;}
+  .msg-box.show{display:block;}
+  .msg-box.ok{background:rgba(45,212,191,.12); color:var(--teal); border:1px solid rgba(45,212,191,.3);}
+  .msg-box.err{background:rgba(255,91,91,.12); color:var(--red); border:1px solid rgba(255,91,91,.3);}
+
+  .stats{display:flex; gap:10px; margin-bottom:16px;}
+  .stat-card{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center;}
+  .stat-card .num{font-size:24px; font-weight:700; color:var(--teal);}
+  .stat-card .lbl{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .rec-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .rec-item .name{font-size:14px; font-weight:700;}
+  .rec-item .sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .rec-item .amt{font-size:15px; font-weight:700; color:var(--amber);}
+  .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
+  .loading{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
+
+  nav{
+    position:fixed; bottom:0; left:0; right:0; background:#161f21;
+    border-top:1px solid var(--line); display:flex; z-index:20;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav button{
+    flex:1; background:none; border:none; padding:12px 0 10px; color:var(--text-dim);
+    display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; cursor:pointer;
+  }
+  nav button .ic{font-size:20px;}
+  nav button.active{color:var(--teal);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>🧰 拿貨登記</h1>
+    <div class="sub">韋德機車精品</div>
+    <div class="greet" id="greet">載入中…</div>
+  </header>
+
+  <main>
+    <!-- 拿貨 -->
+    <section class="tabpanel active" id="tab-pickup">
+      <div class="field">
+        <label>品項</label>
+        <input type="text" id="pickupItem" placeholder="例如：機油、輪胎、零件名稱">
+      </div>
+      <div class="field">
+        <label>數量</label>
+        <input type="number" id="pickupQty" value="1" min="1">
+      </div>
+      <div class="field">
+        <label>金額（選填）</label>
+        <input type="number" id="pickupAmount" placeholder="例如：350" min="0">
+      </div>
+      <div class="field">
+        <label>狀態</label>
+        <select id="pickupStatus">
+          <option value="拿貨">拿貨</option>
+          <option value="訂購">訂購（未到貨）</option>
+        </select>
+      </div>
+      <button class="submit-btn" id="btnPickupSubmit">送出登記</button>
+      <div class="msg-box" id="pickupMsg"></div>
+    </section>
+
+    <!-- 紀錄 -->
+    <section class="tabpanel" id="tab-records">
+      <div class="stats" id="myStats"></div>
+      <div id="myList"><div class="loading">載入中…</div></div>
+    </section>
+  </main>
+</div>
+
+<nav>
+  <button class="active" data-tab="pickup"><span class="ic">🧰</span>拿貨登記</button>
+  <button data-tab="records"><span class="ic">📒</span>我的紀錄</button>
+</nav>
+
+<script>
+/* ============ 設定 ============ */
+const LIFF_ID = "2010744078-jgPJobFh";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec";
+
+let profile = null;
+
+/* ============ Tab 切換 ============ */
+document.querySelectorAll("nav button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tabpanel").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-"+btn.dataset.tab).classList.add("active");
+    if(btn.dataset.tab === "records") loadMyRecords();
+  });
+});
+
+/* ============ LIFF 初始化 ============ */
+async function initLiff(){
+  try{
+    await liff.init({ liffId: LIFF_ID });
+    if(!liff.isLoggedIn()){ liff.login(); return; }
+    profile = await liff.getProfile();
+    document.getElementById("greet").innerHTML = "哈囉，<b>"+profile.displayName+"</b>";
+  }catch(err){
+    document.getElementById("greet").textContent = "初始化失敗：" + err.message;
+  }
+}
+initLiff();
+
+/* ============ 送出拿貨登記 ============ */
+document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
+  if(!profile){ alert("尚未完成 LINE 登入"); return; }
+  const item = document.getElementById("pickupItem").value.trim();
+  const qty = document.getElementById("pickupQty").value || 1;
+  const amount = document.getElementById("pickupAmount").value;
+  const status = document.getElementById("pickupStatus").value;
+  const msgBox = document.getElementById("pickupMsg");
+  const btn = document.getElementById("btnPickupSubmit");
+
+  if(!item){
+    msgBox.textContent = "請輸入品項";
+    msgBox.className = "msg-box show err";
+    return;
+  }
+
+  btn.disabled = true;
+  msgBox.className = "msg-box";
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        type: "liff_pickup",
+        userId: profile.userId,
+        displayName: profile.displayName,
+        item: item,
+        qty: qty,
+        amount: amount,
+        status: status,
+      }),
+    });
+    const data = await resp.json();
+    if(data.ok){
+      msgBox.textContent = "✅ 登記成功";
+      msgBox.className = "msg-box show ok";
+      document.getElementById("pickupItem").value = "";
+      document.getElementById("pickupQty").value = 1;
+      document.getElementById("pickupAmount").value = "";
+    }else{
+      msgBox.textContent = "❌ " + data.error;
+      msgBox.className = "msg-box show err";
+    }
+  }catch(err){
+    msgBox.textContent = "❌ 送出失敗：" + err.message;
+    msgBox.className = "msg-box show err";
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+/* ============ 我的紀錄與金額 ============ */
+async function loadMyRecords(){
+  if(!profile) return;
+  const statsEl = document.getElementById("myStats");
+  const listEl = document.getElementById("myList");
+  listEl.innerHTML = '<div class="loading">載入中…</div>';
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ type: "my_pickup_summary", userId: profile.userId }),
+    });
+    const data = await resp.json();
+    if(!data.ok){
+      listEl.innerHTML = '<div class="empty">'+ (data.error||"載入失敗") +'</div>';
+      return;
+    }
+
+    statsEl.innerHTML =
+      '<div class="stat-card"><div class="num">'+data.items.length+'</div><div class="lbl">拿貨筆數</div></div>'
+      + '<div class="stat-card"><div class="num">$'+data.total+'</div><div class="lbl">累計金額</div></div>';
+
+    if(data.items.length === 0){
+      listEl.innerHTML = '<div class="empty">目前沒有拿貨紀錄</div>';
+    }else{
+      listEl.innerHTML = data.items.map(it=>{
+        return '<div class="rec-item"><div><div class="name">'+it.item+' x'+it.qty+'</div>'
+          + '<div class="sub">'+it.date+'　'+it.status+'</div></div>'
+          + (it.amount ? '<div class="amt">$'+it.amount+'</div>' : '')
+          + '</div>';
+      }).join("");
+    }
+  }catch(err){
+    listEl.innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
+  }
+}
+</script>
+</body>
+</html>
