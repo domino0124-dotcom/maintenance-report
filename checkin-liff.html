@@ -249,7 +249,7 @@ async function initLiff(){
       return;
     }
     profile = await liff.getProfile();
-    document.getElementById("greet").innerHTML = "哈囉，<b>"+profile.displayName+"</b>";
+    document.getElementById("greet").innerHTML = "哈囉，<b>"+profile.displayName+"</b><br><span style='font-size:11px;opacity:.6;user-select:all;'>UID: "+profile.userId+"</span>";
   }catch(err){
     document.getElementById("greet").textContent = "初始化失敗：" + err.message;
   }
