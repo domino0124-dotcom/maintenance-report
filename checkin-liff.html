@@ -114,6 +114,28 @@
   .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
   .loading{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
 
+  /* ---- 管理員 tab ---- */
+  .admin-stats{display:flex; gap:10px; margin-bottom:6px;}
+  .stat-card{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center;}
+  .stat-card .num{font-size:24px; font-weight:700; color:var(--amber);}
+  .stat-card .lbl{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .admin-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:8px;
+  }
+  .admin-item .top-row{display:flex; justify-content:space-between; align-items:center;}
+  .admin-item .name{font-weight:700; font-size:14px;}
+  .admin-item .sub{font-size:12px; color:var(--text-dim); margin-top:3px;}
+  .approve-btn{
+    background:var(--green); color:#082217; border:none; border-radius:8px;
+    padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .approve-btn:disabled{opacity:.5;}
+  .status-dot{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .status-dot.in{background:var(--green);}
+  .status-dot.absent{background:var(--red);}
+  .status-dot.leave{background:var(--amber);}
+
   /* ---- bottom nav ---- */
   nav{
     position:fixed; bottom:0; left:0; right:0; background:#191d21;
@@ -198,6 +220,15 @@
       <div class="section-title">請假紀錄</div>
       <div id="leaveList"><div class="loading">載入中…</div></div>
     </section>
+
+    <!-- 管理員 -->
+    <section class="tabpanel" id="tab-admin">
+      <div class="admin-stats" id="adminStats"></div>
+      <div class="section-title">待審核請假</div>
+      <div id="adminPendingList"><div class="loading">載入中…</div></div>
+      <div class="section-title">今日出勤總覽</div>
+      <div id="adminAttList"><div class="loading">載入中…</div></div>
+    </section>
   </main>
 </div>
 
@@ -205,6 +236,7 @@
   <button class="active" data-tab="punch"><span class="ic">⏱️</span>打卡</button>
   <button data-tab="leave"><span class="ic">📝</span>請假</button>
   <button data-tab="records"><span class="ic">📊</span>紀錄</button>
+  <button data-tab="admin"><span class="ic">🗂️</span>管理</button>
 </nav>
 
 <script>
@@ -237,6 +269,7 @@ document.querySelectorAll("nav button").forEach(btn=>{
     const tab = btn.dataset.tab;
     document.getElementById("tab-"+tab).classList.add("active");
     if(tab === "records") loadRecords();
+    if(tab === "admin") loadAdmin();
   });
 });
 
@@ -431,6 +464,94 @@ async function loadRecords(){
     }
   }catch(err){
     document.getElementById("recList").innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
+  }
+}
+
+/* ============ 管理員後台 ============ */
+async function loadAdmin(){
+  if(!profile) return;
+  const statsEl = document.getElementById("adminStats");
+  const pendingEl = document.getElementById("adminPendingList");
+  const attEl = document.getElementById("adminAttList");
+
+  pendingEl.innerHTML = '<div class="loading">載入中…</div>';
+  attEl.innerHTML = "";
+  statsEl.innerHTML = "";
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ type: "admin_today", userId: profile.userId }),
+    });
+    const data = await resp.json();
+
+    if(!data.ok){
+      pendingEl.innerHTML = '<div class="empty">'+data.error+'</div>';
+      return;
+    }
+
+    const inCount = data.attendance.filter(a=>a.status==="in").length;
+    const totalCount = data.attendance.length;
+    statsEl.innerHTML =
+      '<div class="stat-card"><div class="num">'+inCount+' / '+totalCount+'</div><div class="lbl">今日已到</div></div>'
+      + '<div class="stat-card"><div class="num">'+data.pendingLeaves.length+'</div><div class="lbl">待審請假</div></div>';
+
+    if(data.pendingLeaves.length === 0){
+      pendingEl.innerHTML = '<div class="empty">目前沒有待審核的請假</div>';
+    }else{
+      pendingEl.innerHTML = data.pendingLeaves.map(l=>{
+        return '<div class="admin-item">'
+          + '<div class="top-row"><div><div class="name">'+l.name+'　'+l.date+'</div>'
+          + '<div class="sub">'+l.type+(l.reason?'　'+l.reason:'')+'</div></div>'
+          + '<button class="approve-btn" data-id="'+l.id+'">核准</button></div></div>';
+      }).join("");
+
+      pendingEl.querySelectorAll(".approve-btn").forEach(btn=>{
+        btn.addEventListener("click", async ()=>{
+          btn.disabled = true;
+          btn.textContent = "處理中…";
+          try{
+            const r = await fetch(GAS_URL, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify({ type: "admin_approve", userId: profile.userId, id: btn.dataset.id }),
+            });
+            const rd = await r.json();
+            if(rd.ok){
+              loadAdmin();
+            }else{
+              alert(rd.error);
+              btn.disabled = false;
+              btn.textContent = "核准";
+            }
+          }catch(err){
+            alert("操作失敗："+err.message);
+            btn.disabled = false;
+            btn.textContent = "核准";
+          }
+        });
+      });
+    }
+
+    attEl.innerHTML = data.attendance.map(a=>{
+      if(a.status === "in"){
+        const lateTag = a.late > 0 ? '　<span class="badge late">遲到'+a.late+'分</span>' : "";
+        return '<div class="admin-item"><div class="top-row">'
+          + '<div><span class="status-dot in"></span><span class="name">'+a.name+'</span></div>'
+          + '<div class="sub">上班 '+a.inTime+(a.outTime?'　下班 '+a.outTime:'')+lateTag+'</div></div></div>';
+      }
+      if(a.status === "leave"){
+        return '<div class="admin-item"><div class="top-row">'
+          + '<div><span class="status-dot leave"></span><span class="name">'+a.name+'</span></div>'
+          + '<div class="sub">請假：'+a.leaveType+'</div></div></div>';
+      }
+      return '<div class="admin-item"><div class="top-row">'
+        + '<div><span class="status-dot absent"></span><span class="name">'+a.name+'</span></div>'
+        + '<div class="sub">尚未打卡</div></div></div>';
+    }).join("");
+  }catch(err){
+    pendingEl.innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
   }
 }
 </script>
