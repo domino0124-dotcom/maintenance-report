@@ -193,8 +193,12 @@
     <!-- 請假 -->
     <section class="tabpanel" id="tab-leave">
       <div class="field">
-        <label>請假日期</label>
+        <label>開始日期</label>
         <input type="date" id="leaveDate">
+      </div>
+      <div class="field">
+        <label>結束日期（選填，連續請假才需要填）</label>
+        <input type="date" id="leaveDateEnd">
       </div>
       <div class="field">
         <label>假別</label>
@@ -371,13 +375,19 @@ document.getElementById("btnOut").addEventListener("click", ()=>doPunch("checkou
 document.getElementById("btnLeaveSubmit").addEventListener("click", async ()=>{
   if(!profile){ alert("尚未完成 LINE 登入"); return; }
   const date = document.getElementById("leaveDate").value;
+  const dateEnd = document.getElementById("leaveDateEnd").value;
   const leaveType = document.getElementById("leaveType").value;
   const reason = document.getElementById("leaveReason").value;
   const msgBox = document.getElementById("leaveMsg");
   const btn = document.getElementById("btnLeaveSubmit");
 
   if(!date){
-    msgBox.textContent = "請選擇請假日期";
+    msgBox.textContent = "請選擇開始日期";
+    msgBox.className = "msg-box show err";
+    return;
+  }
+  if(dateEnd && dateEnd < date){
+    msgBox.textContent = "結束日期不能早於開始日期";
     msgBox.className = "msg-box show err";
     return;
   }
@@ -393,15 +403,18 @@ document.getElementById("btnLeaveSubmit").addEventListener("click", async ()=>{
         type: "leave",
         userId: profile.userId,
         date: date,
+        dateEnd: dateEnd || date,
         leaveType: leaveType,
         reason: reason,
       }),
     });
     const data = await resp.json();
     if(data.ok){
-      msgBox.textContent = "✅ 請假申請已送出，等待管理者核准";
+      const dayCount = data.count || 1;
+      msgBox.textContent = "✅ 請假申請已送出（共 "+dayCount+" 天），等待管理者核准";
       msgBox.className = "msg-box show ok";
       document.getElementById("leaveReason").value = "";
+      document.getElementById("leaveDateEnd").value = "";
     }else{
       msgBox.textContent = "❌ " + data.error;
       msgBox.className = "msg-box show err";
