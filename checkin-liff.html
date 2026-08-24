@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>員工打卡 | 韋德機車精品</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --bg: #14171a;
+    --panel: #1d2226;
+    --panel-2: #262c31;
+    --line: #333b41;
+    --amber: #ff8a1e;
+    --amber-dim: #7a4c1f;
+    --green: #3ddc84;
+    --red: #ff5b5b;
+    --text: #eef1f3;
+    --text-dim: #9aa4ab;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+    min-height:100vh;}
+  .display{font-family:'Courier New',monospace; font-variant-numeric:tabular-nums; letter-spacing:1px;}
+
+  .wrap{max-width:480px; margin:0 auto; padding:0 0 90px;}
+
+  header{
+    padding:22px 20px 18px;
+    background:linear-gradient(180deg, #1a1e22 0%, var(--bg) 100%);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand{display:flex; align-items:center; justify-content:space-between;}
+  .brand h1{font-size:15px; margin:0; font-weight:700; letter-spacing:1px; color:var(--text-dim);}
+  .clock{font-size:26px; font-weight:700; color:var(--amber);}
+  .clock .sec{font-size:16px; color:var(--text-dim);}
+  .date-line{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .greet{margin-top:10px; font-size:13px; color:var(--text-dim);}
+  .greet b{color:var(--text);}
+
+  main{padding:18px 16px;}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---- 打卡 tab ---- */
+  .punch-stage{
+    background:radial-gradient(circle at 50% 0%, #232a2f 0%, var(--panel) 70%);
+    border:1px solid var(--line); border-radius:20px; padding:28px 20px 22px;
+    text-align:center; margin-bottom:16px;
+  }
+  .punch-status{font-size:13px; color:var(--text-dim); margin-bottom:18px; min-height:18px;}
+  .btn-row{display:flex; gap:16px; justify-content:center;}
+  .ignite{
+    width:130px; height:130px; border-radius:50%; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; font-weight:700; font-size:15px;
+    background:radial-gradient(circle at 35% 30%, #ffb35c, #ff8a1e 55%, #b85f10 100%);
+    color:#221200; box-shadow:0 6px 0 var(--amber-dim), 0 10px 20px rgba(255,138,30,.25);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .ignite.out{
+    background:radial-gradient(circle at 35% 30%, #4f5a61, #333b41 55%, #1f2529 100%);
+    color:#e7edf0; box-shadow:0 6px 0 #14181b, 0 10px 20px rgba(0,0,0,.35);
+  }
+  .ignite:active{transform:translateY(4px); box-shadow:0 2px 0 var(--amber-dim);}
+  .ignite.out:active{box-shadow:0 2px 0 #14181b;}
+  .ignite:disabled{opacity:.4; filter:grayscale(.6); box-shadow:none; transform:none;}
+  .ignite .icon{font-size:26px;}
+
+  .result-card{
+    margin-top:18px; text-align:left; border-radius:14px; overflow:hidden;
+    border:1px solid var(--line); display:none;
+  }
+  .result-card.show{display:block; animation:fadeIn .3s ease;}
+  .result-card .map{width:100%; height:150px; border:0; display:block; filter:grayscale(.15) contrast(1.05);}
+  .result-body{padding:14px 16px; background:var(--panel-2);}
+  .result-row{display:flex; justify-content:space-between; font-size:14px; padding:4px 0;}
+  .result-row .k{color:var(--text-dim);}
+  .badge{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700;}
+  .badge.ok{background:rgba(61,220,132,.15); color:var(--green);}
+  .badge.late{background:rgba(255,91,91,.15); color:var(--red);}
+  .badge.warn{background:rgba(255,138,30,.15); color:var(--amber);}
+
+  /* ---- 請假 tab ---- */
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:600;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:12px 13px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-size:15px; font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .field select{appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa4ab'><path d='M7 10l5 5 5-5z'/></svg>"); background-repeat:no-repeat; background-position:right 12px center;}
+  .submit-btn{
+    width:100%; padding:14px; border:none; border-radius:12px; background:var(--amber);
+    color:#221200; font-weight:700; font-size:15px; cursor:pointer; margin-top:6px;
+  }
+  .submit-btn:disabled{opacity:.5;}
+  .msg-box{margin-top:14px; padding:12px 14px; border-radius:10px; font-size:13.5px; display:none;}
+  .msg-box.show{display:block;}
+  .msg-box.ok{background:rgba(61,220,132,.12); color:var(--green); border:1px solid rgba(61,220,132,.3);}
+  .msg-box.err{background:rgba(255,91,91,.12); color:var(--red); border:1px solid rgba(255,91,91,.3);}
+
+  /* ---- 紀錄 tab ---- */
+  .section-title{font-size:12px; color:var(--text-dim); font-weight:700; letter-spacing:1px; margin:18px 0 8px; text-transform:uppercase;}
+  .rec-item{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .rec-item .date{font-size:13px; font-weight:700;}
+  .rec-item .sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
+  .loading{text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
+
+  /* ---- bottom nav ---- */
+  nav{
+    position:fixed; bottom:0; left:0; right:0; background:#191d21;
+    border-top:1px solid var(--line); display:flex; z-index:20;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav button{
+    flex:1; background:none; border:none; padding:12px 0 10px; color:var(--text-dim);
+    display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; cursor:pointer;
+  }
+  nav button .ic{font-size:20px;}
+  nav button.active{color:var(--amber);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>韋德機車精品 · 員工打卡</h1>
+    </div>
+    <div class="clock display" id="clock">--:--<span class="sec">:--</span></div>
+    <div class="date-line" id="dateLine">—</div>
+    <div class="greet" id="greet">載入中…</div>
+  </header>
+
+  <main>
+    <!-- 打卡 -->
+    <section class="tabpanel active" id="tab-punch">
+      <div class="punch-stage">
+        <div class="punch-status" id="punchStatus">準備打卡</div>
+        <div class="btn-row">
+          <button class="ignite" id="btnIn">
+            <span class="icon">⏱️</span>
+            上班打卡
+          </button>
+          <button class="ignite out" id="btnOut">
+            <span class="icon">🏁</span>
+            下班打卡
+          </button>
+        </div>
+      </div>
+
+      <div class="result-card" id="resultCard">
+        <iframe class="map" id="resultMap" src="" loading="lazy"></iframe>
+        <div class="result-body">
+          <div class="result-row"><span class="k">姓名</span><span id="rName">—</span></div>
+          <div class="result-row"><span class="k">時間</span><span id="rTime" class="display">—</span></div>
+          <div class="result-row"><span class="k">距店</span><span id="rDist">—</span></div>
+          <div class="result-row"><span class="k">狀態</span><span id="rBadge">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 請假 -->
+    <section class="tabpanel" id="tab-leave">
+      <div class="field">
+        <label>請假日期</label>
+        <input type="date" id="leaveDate">
+      </div>
+      <div class="field">
+        <label>假別</label>
+        <select id="leaveType">
+          <option value="事假">事假</option>
+          <option value="病假">病假</option>
+          <option value="特休">特休</option>
+          <option value="公假">公假</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>事由（選填）</label>
+        <textarea id="leaveReason" placeholder="簡單說明一下原因"></textarea>
+      </div>
+      <button class="submit-btn" id="btnLeaveSubmit">送出請假申請</button>
+      <div class="msg-box" id="leaveMsg"></div>
+    </section>
+
+    <!-- 紀錄 -->
+    <section class="tabpanel" id="tab-records">
+      <div class="section-title">本月出勤</div>
+      <div id="recList"><div class="loading">載入中…</div></div>
+      <div class="section-title">請假紀錄</div>
+      <div id="leaveList"><div class="loading">載入中…</div></div>
+    </section>
+  </main>
+</div>
+
+<nav>
+  <button class="active" data-tab="punch"><span class="ic">⏱️</span>打卡</button>
+  <button data-tab="leave"><span class="ic">📝</span>請假</button>
+  <button data-tab="records"><span class="ic">📊</span>紀錄</button>
+</nav>
+
+<script>
+/* ============ 設定 ============ */
+const LIFF_ID = "2010744078-0Da20QZ1";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec";
+
+let profile = null;
+
+/* ============ 時鐘 ============ */
+function tickClock(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,"0");
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  const ss = String(now.getSeconds()).padStart(2,"0");
+  document.getElementById("clock").innerHTML = hh+":"+mm+"<span class='sec'>:"+ss+"</span>";
+  const days = ["日","一","二","三","四","五","六"];
+  document.getElementById("dateLine").textContent =
+    now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+"（週"+days[now.getDay()]+"）";
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+/* ============ Tab 切換 ============ */
+document.querySelectorAll("nav button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tabpanel").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.tab;
+    document.getElementById("tab-"+tab).classList.add("active");
+    if(tab === "records") loadRecords();
+  });
+});
+
+/* ============ LIFF 初始化 ============ */
+async function initLiff(){
+  try{
+    await liff.init({ liffId: LIFF_ID });
+    if(!liff.isLoggedIn()){
+      liff.login();
+      return;
+    }
+    profile = await liff.getProfile();
+    document.getElementById("greet").innerHTML = "哈囉，<b>"+profile.displayName+"</b>";
+  }catch(err){
+    document.getElementById("greet").textContent = "初始化失敗：" + err.message;
+  }
+}
+initLiff();
+
+/* ============ 定位 ============ */
+function getLocation(){
+  return new Promise((resolve, reject)=>{
+    if(!navigator.geolocation){ reject(new Error("此裝置不支援定位")); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(new Error("無法取得定位，請確認已開啟定位權限")),
+      { enableHighAccuracy:true, timeout:10000 }
+    );
+  });
+}
+
+/* ============ 打卡 ============ */
+async function doPunch(type){
+  if(!profile){ alert("尚未完成 LINE 登入，請稍後再試"); return; }
+
+  const statusEl = document.getElementById("punchStatus");
+  const btnIn = document.getElementById("btnIn");
+  const btnOut = document.getElementById("btnOut");
+  btnIn.disabled = true; btnOut.disabled = true;
+  statusEl.textContent = "定位中…";
+
+  try{
+    const loc = await getLocation();
+    statusEl.textContent = "送出中…";
+
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        type: type,
+        userId: profile.userId,
+        lat: loc.lat,
+        lng: loc.lng,
+      }),
+    });
+    const data = await resp.json();
+
+    if(!data.ok){
+      statusEl.textContent = "❌ " + data.error;
+      btnIn.disabled = false; btnOut.disabled = false;
+      return;
+    }
+
+    showResult(data, type, loc);
+    statusEl.textContent = "完成";
+  }catch(err){
+    statusEl.textContent = "❌ " + err.message;
+  }finally{
+    btnIn.disabled = false; btnOut.disabled = false;
+  }
+}
+
+function showResult(data, type, loc){
+  const card = document.getElementById("resultCard");
+  document.getElementById("resultMap").src =
+    "https://www.google.com/maps?q=" + loc.lat + "," + loc.lng + "&z=17&output=embed";
+  document.getElementById("rName").textContent = data.name;
+  document.getElementById("rTime").textContent = data.time;
+  document.getElementById("rDist").textContent = data.distance + " 公尺";
+
+  const badgeEl = document.getElementById("rBadge");
+  if(data.abnormal){
+    badgeEl.innerHTML = '<span class="badge warn">超出打卡範圍</span>';
+  }else if(type === "in" && data.late > 0){
+    badgeEl.innerHTML = '<span class="badge late">遲到 '+data.late+' 分</span>';
+  }else if(type === "out"){
+    badgeEl.innerHTML = '<span class="badge ok">工時 '+data.hours+' 小時</span>';
+  }else{
+    badgeEl.innerHTML = '<span class="badge ok">準時</span>';
+  }
+
+  card.classList.add("show");
+}
+
+document.getElementById("btnIn").addEventListener("click", ()=>doPunch("checkin"));
+document.getElementById("btnOut").addEventListener("click", ()=>doPunch("checkout"));
+
+/* ============ 請假 ============ */
+document.getElementById("btnLeaveSubmit").addEventListener("click", async ()=>{
+  if(!profile){ alert("尚未完成 LINE 登入"); return; }
+  const date = document.getElementById("leaveDate").value;
+  const leaveType = document.getElementById("leaveType").value;
+  const reason = document.getElementById("leaveReason").value;
+  const msgBox = document.getElementById("leaveMsg");
+  const btn = document.getElementById("btnLeaveSubmit");
+
+  if(!date){
+    msgBox.textContent = "請選擇請假日期";
+    msgBox.className = "msg-box show err";
+    return;
+  }
+
+  btn.disabled = true;
+  msgBox.className = "msg-box";
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        type: "leave",
+        userId: profile.userId,
+        date: date,
+        leaveType: leaveType,
+        reason: reason,
+      }),
+    });
+    const data = await resp.json();
+    if(data.ok){
+      msgBox.textContent = "✅ 請假申請已送出，等待管理者核准";
+      msgBox.className = "msg-box show ok";
+      document.getElementById("leaveReason").value = "";
+    }else{
+      msgBox.textContent = "❌ " + data.error;
+      msgBox.className = "msg-box show err";
+    }
+  }catch(err){
+    msgBox.textContent = "❌ 送出失敗：" + err.message;
+    msgBox.className = "msg-box show err";
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+/* ============ 紀錄查詢 ============ */
+let recordsLoaded = false;
+async function loadRecords(){
+  if(recordsLoaded || !profile) return;
+  recordsLoaded = true;
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ type: "myrecords", userId: profile.userId }),
+    });
+    const data = await resp.json();
+
+    const recList = document.getElementById("recList");
+    const leaveList = document.getElementById("leaveList");
+
+    if(!data.ok){
+      recList.innerHTML = '<div class="empty">'+data.error+'</div>';
+      leaveList.innerHTML = "";
+      return;
+    }
+
+    if(data.records.length === 0){
+      recList.innerHTML = '<div class="empty">目前還沒有打卡紀錄</div>';
+    }else{
+      recList.innerHTML = data.records.map(r=>{
+        const lateTag = r.late > 0 ? '<span class="badge late">遲到'+r.late+'分</span>' : "";
+        return '<div class="rec-item">'
+          + '<div><div class="date">'+r.date+'</div>'
+          + '<div class="sub">上班 '+(r.in||"—")+'　下班 '+(r.out||"—")+(r.hours?"　"+r.hours+"hr":"")+'</div></div>'
+          + lateTag + '</div>';
+      }).join("");
+    }
+
+    if(data.leaves.length === 0){
+      leaveList.innerHTML = '<div class="empty">目前沒有請假紀錄</div>';
+    }else{
+      leaveList.innerHTML = data.leaves.map(l=>{
+        const statusBadge = l.status === "已核准"
+          ? '<span class="badge ok">已核准</span>'
+          : '<span class="badge warn">待審核</span>';
+        return '<div class="rec-item">'
+          + '<div><div class="date">'+l.date+'</div>'
+          + '<div class="sub">'+l.type+'</div></div>'
+          + statusBadge + '</div>';
+      }).join("");
+    }
+  }catch(err){
+    document.getElementById("recList").innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
+  }
+}
+</script>
+</body>
+</html>
