@@ -280,7 +280,7 @@ async function loadMyRecords(){
       listEl.innerHTML = '<div class="empty">目前沒有拿貨紀錄</div>';
     }else{
       listEl.innerHTML = data.items.map(it=>{
-        return '<div class="rec-item"><div><div class="name">'+it.name+'　'+it.item+' x'+it.qty+'</div>'
+        return '<div class="rec-item"><div><div class="name">'+(it.name||'')+'　'+it.item+' x'+it.qty+'</div>'
           + '<div class="sub">'+it.date+'　'+it.status+'</div></div>'
           + (it.amount ? '<div class="amt">$'+it.amount+'</div>' : '')
           + '</div>';
