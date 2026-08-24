@@ -201,15 +201,15 @@
         <input type="number" id="pickupQty" value="1" min="1">
       </div>
       <div class="field">
+        <label>金額（選填）</label>
+        <input type="number" id="pickupAmount" placeholder="例如：350" min="0">
+      </div>
+      <div class="field">
         <label>狀態</label>
         <select id="pickupStatus">
           <option value="拿貨">拿貨</option>
           <option value="訂購">訂購（未到貨）</option>
         </select>
-      </div>
-      <div class="field">
-        <label>備註（選填）</label>
-        <textarea id="pickupNote" placeholder="用途、車號等"></textarea>
       </div>
       <button class="submit-btn" id="btnPickupSubmit">送出拿貨登記</button>
       <div class="msg-box" id="pickupMsg"></div>
@@ -425,8 +425,8 @@ document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
   if(!profile){ alert("尚未完成 LINE 登入"); return; }
   const item = document.getElementById("pickupItem").value.trim();
   const qty = document.getElementById("pickupQty").value || 1;
+  const amount = document.getElementById("pickupAmount").value;
   const status = document.getElementById("pickupStatus").value;
-  const note = document.getElementById("pickupNote").value;
   const msgBox = document.getElementById("pickupMsg");
   const btn = document.getElementById("btnPickupSubmit");
 
@@ -448,8 +448,8 @@ document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
         userId: profile.userId,
         item: item,
         qty: qty,
+        amount: amount,
         status: status,
-        note: note,
       }),
     });
     const data = await resp.json();
@@ -458,7 +458,7 @@ document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
       msgBox.className = "msg-box show ok";
       document.getElementById("pickupItem").value = "";
       document.getElementById("pickupQty").value = 1;
-      document.getElementById("pickupNote").value = "";
+      document.getElementById("pickupAmount").value = "";
     }else{
       msgBox.textContent = "❌ " + data.error;
       msgBox.className = "msg-box show err";
@@ -713,7 +713,9 @@ async function openEmployeeDetail_(name){
       : data.records.map(r=>{
           const lateTag = r.late > 0 ? '<span class="badge late">遲到'+r.late+'分</span>' : "";
           return '<div class="admin-item"><div class="top-row"><div><div class="name">'+r.date+'</div>'
-            + '<div class="sub">上班 '+(r.in||"—")+'　下班 '+(r.out||"—")+'</div></div>'+lateTag+'</div></div>';
+            + '<div class="sub">上班 '+(r.in||"—")+'　下班 '+(r.out||"—")+'</div></div>'
+            + '<div style="display:flex; align-items:center; gap:8px;">'+lateTag
+            + '<button class="del-rec-btn" data-id="'+r.id+'" style="background:none; border:1px solid var(--red); color:var(--red); border-radius:8px; padding:5px 10px; font-size:11px;">刪除</button></div></div></div>';
         }).join("");
 
     document.getElementById("detailLeaveList").innerHTML = data.leaves.length === 0
@@ -721,8 +723,44 @@ async function openEmployeeDetail_(name){
       : data.leaves.map(l=>{
           const statusBadge = l.status === "已核准" ? '<span class="badge ok">已核准</span>' : '<span class="badge warn">待審核</span>';
           return '<div class="admin-item"><div class="top-row"><div><div class="name">'+l.date+'</div>'
-            + '<div class="sub">'+l.type+'</div></div>'+statusBadge+'</div></div>';
+            + '<div class="sub">'+l.type+'</div></div>'
+            + '<div style="display:flex; align-items:center; gap:8px;">'+statusBadge
+            + '<button class="del-leave-btn" data-id="'+l.id+'" style="background:none; border:1px solid var(--red); color:var(--red); border-radius:8px; padding:5px 10px; font-size:11px;">刪除</button></div></div></div>';
         }).join("");
+
+    document.querySelectorAll(".del-rec-btn").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if(!confirm("確定要刪除這筆打卡紀錄嗎？")) return;
+        btn.disabled = true;
+        try{
+          const r = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify({ type: "admin_delete_attendance", userId: profile.userId, id: btn.dataset.id }),
+          });
+          const rd = await r.json();
+          if(rd.ok){ openEmployeeDetail_(currentDetailName); }
+          else{ alert(rd.error); btn.disabled = false; }
+        }catch(err){ alert("刪除失敗："+err.message); btn.disabled = false; }
+      });
+    });
+
+    document.querySelectorAll(".del-leave-btn").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if(!confirm("確定要刪除這筆請假紀錄嗎？")) return;
+        btn.disabled = true;
+        try{
+          const r = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify({ type: "admin_delete_leave", userId: profile.userId, id: btn.dataset.id }),
+          });
+          const rd = await r.json();
+          if(rd.ok){ openEmployeeDetail_(currentDetailName); }
+          else{ alert(rd.error); btn.disabled = false; }
+        }catch(err){ alert("刪除失敗："+err.message); btn.disabled = false; }
+      });
+    });
   }catch(err){
     document.getElementById("detailStats").innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
   }
