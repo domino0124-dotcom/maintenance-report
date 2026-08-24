@@ -124,12 +124,44 @@
       <div class="stats" id="myStats"></div>
       <div id="myList"><div class="loading">載入中…</div></div>
     </section>
+
+    <!-- 對帳 -->
+    <section class="tabpanel" id="tab-settle">
+      <div class="field">
+        <label>姓名 A</label>
+        <input type="text" id="settleName1" placeholder="例如：小韋">
+      </div>
+      <div class="field">
+        <label>姓名 B</label>
+        <input type="text" id="settleName2" placeholder="例如：小明">
+      </div>
+      <button class="submit-btn" id="btnSettleQuery">查詢對帳</button>
+      <div class="msg-box" id="settleMsg"></div>
+
+      <div id="settleResult" style="display:none; margin-top:16px;">
+        <div class="stats" id="settleStats"></div>
+        <div style="background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; margin-bottom:16px;">
+          <div id="settleLine" style="font-size:16px; font-weight:700; color:var(--amber);"></div>
+        </div>
+        <button class="submit-btn" id="btnCopySettle" style="background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📋 複製對帳結果</button>
+
+        <div class="rec-item" style="display:block; margin-top:16px;">
+          <div class="name" id="settleName1Title" style="margin-bottom:8px;"></div>
+          <div id="settleList1"></div>
+        </div>
+        <div class="rec-item" style="display:block;">
+          <div class="name" id="settleName2Title" style="margin-bottom:8px;"></div>
+          <div id="settleList2"></div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
 <nav>
   <button class="active" data-tab="pickup"><span class="ic">🧰</span>拿貨登記</button>
   <button data-tab="records"><span class="ic">📒</span>我的紀錄</button>
+  <button data-tab="settle"><span class="ic">⚖️</span>對帳</button>
 </nav>
 
 <script>
@@ -252,6 +284,93 @@ async function loadMyRecords(){
     listEl.innerHTML = '<div class="empty">載入失敗：'+err.message+'</div>';
   }
 }
+
+/* ============ 對帳 ============ */
+let lastSettleText = "";
+
+document.getElementById("btnSettleQuery").addEventListener("click", async ()=>{
+  const name1 = document.getElementById("settleName1").value.trim();
+  const name2 = document.getElementById("settleName2").value.trim();
+  const msgBox = document.getElementById("settleMsg");
+  const btn = document.getElementById("btnSettleQuery");
+  const resultBox = document.getElementById("settleResult");
+
+  if(!name1 || !name2){
+    msgBox.textContent = "請輸入兩個人的姓名";
+    msgBox.className = "msg-box show err";
+    return;
+  }
+
+  btn.disabled = true;
+  msgBox.className = "msg-box";
+  resultBox.style.display = "none";
+
+  try{
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ type: "settlement", name1: name1, name2: name2 }),
+    });
+    const data = await resp.json();
+    if(!data.ok){
+      msgBox.textContent = "❌ " + (data.error || "查詢失敗");
+      msgBox.className = "msg-box show err";
+      return;
+    }
+
+    document.getElementById("settleStats").innerHTML =
+      '<div class="stat-card"><div class="num">$'+data.total1+'</div><div class="lbl">'+data.name1+' 總額</div></div>'
+      + '<div class="stat-card"><div class="num">$'+data.total2+'</div><div class="lbl">'+data.name2+' 總額</div></div>';
+
+    let settleText;
+    if(data.diff === 0){
+      settleText = "雙方打平，不用互相付款";
+    }else if(data.diff > 0){
+      settleText = data.name2 + " 要給 " + data.name1 + " $" + data.diff;
+    }else{
+      settleText = data.name1 + " 要給 " + data.name2 + " $" + Math.abs(data.diff);
+    }
+    document.getElementById("settleLine").textContent = "✅ " + settleText;
+
+    function renderList(name, items){
+      if(items.length === 0) return '<div class="empty">無紀錄</div>';
+      return items.map(it=>{
+        return '<div class="sub" style="padding:4px 0;">'+it.date+'　'+it.item+' x'+it.qty+(it.amount?'　$'+it.amount:'')+'</div>';
+      }).join("");
+    }
+
+    document.getElementById("settleName1Title").textContent = data.name1 + "（共 $" + data.total1 + "）";
+    document.getElementById("settleList1").innerHTML = renderList(data.name1, data.items1);
+    document.getElementById("settleName2Title").textContent = data.name2 + "（共 $" + data.total2 + "）";
+    document.getElementById("settleList2").innerHTML = renderList(data.name2, data.items2);
+
+    const lines1 = data.items1.map(it=>"・"+it.date+" "+it.item+" x"+it.qty+(it.amount?" $"+it.amount:"")).join("\n") || "無紀錄";
+    const lines2 = data.items2.map(it=>"・"+it.date+" "+it.item+" x"+it.qty+(it.amount?" $"+it.amount:"")).join("\n") || "無紀錄";
+    lastSettleText =
+      "💰 對帳："+data.name1+" vs "+data.name2+"\n———————\n"
+      + data.name1+"（共 $"+data.total1+"）\n"+lines1+"\n\n"
+      + data.name2+"（共 $"+data.total2+"）\n"+lines2+"\n\n———————\n"
+      + "✅ "+settleText;
+
+    resultBox.style.display = "block";
+  }catch(err){
+    msgBox.textContent = "❌ 查詢失敗：" + err.message;
+    msgBox.className = "msg-box show err";
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("btnCopySettle").addEventListener("click", async ()=>{
+  const btn = document.getElementById("btnCopySettle");
+  try{
+    await navigator.clipboard.writeText(lastSettleText);
+    btn.textContent = "✅ 已複製";
+    setTimeout(()=>{ btn.textContent = "📋 複製對帳結果"; }, 1500);
+  }catch(err){
+    alert("複製失敗，請手動選取文字複製");
+  }
+});
 </script>
 </body>
 </html>
