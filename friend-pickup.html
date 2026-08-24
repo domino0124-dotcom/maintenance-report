@@ -97,6 +97,10 @@
     <!-- 拿貨 -->
     <section class="tabpanel active" id="tab-pickup">
       <div class="field">
+        <label>幫誰登記（留空＝登記給自己）</label>
+        <input type="text" id="pickupForName" placeholder="例如：韋德-901（不填就是自己）">
+      </div>
+      <div class="field">
         <label>品項</label>
         <input type="text" id="pickupItem" placeholder="例如：機油、輪胎、零件名稱">
       </div>
@@ -198,6 +202,7 @@ initLiff();
 /* ============ 送出拿貨登記 ============ */
 document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
   if(!profile){ alert("尚未完成 LINE 登入"); return; }
+  const forName = document.getElementById("pickupForName").value.trim();
   const item = document.getElementById("pickupItem").value.trim();
   const qty = document.getElementById("pickupQty").value || 1;
   const amount = document.getElementById("pickupAmount").value;
@@ -222,6 +227,7 @@ document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
         type: "liff_pickup",
         userId: profile.userId,
         displayName: profile.displayName,
+        forName: forName,
         item: item,
         qty: qty,
         amount: amount,
@@ -230,7 +236,7 @@ document.getElementById("btnPickupSubmit").addEventListener("click", async ()=>{
     });
     const data = await resp.json();
     if(data.ok){
-      msgBox.textContent = "✅ 登記成功";
+      msgBox.textContent = "✅ 登記成功" + (forName ? "（"+forName+"）" : "");
       msgBox.className = "msg-box show ok";
       document.getElementById("pickupItem").value = "";
       document.getElementById("pickupQty").value = 1;
