@@ -133,7 +133,7 @@
   .item.checked .item-detail{display:block;}
 
   .choice-group{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
-  .choice{
+  .choice, .batt-choice{
     border:1.5px solid var(--line);
     background:#fff;
     border-radius:20px;
@@ -143,7 +143,7 @@
     color:var(--sub);
     font-weight:500;
   }
-  .choice.active{
+  .choice.active, .batt-choice.active{
     background:var(--accent);
     border-color:var(--accent);
     color:#fff;
@@ -159,6 +159,26 @@
     font-family:'JetBrains Mono', monospace;
   }
   .price-row span{font-size:13px;color:var(--sub);white-space:nowrap;width:70px;flex-shrink:0;}
+
+  .sub-group{
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    background:#FCFAF6;
+  }
+  .sub-group:last-child{margin-bottom:0;}
+  .sub-check{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:500;
+    padding-bottom:2px;
+  }
+  .sub-check input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;}
+  .sub-note{font-size:11px;color:var(--sub);font-weight:400;margin-left:auto;text-align:right;}
+  .sub-group .price-row{margin-top:8px;}
 
   .generate-btn{
     width:100%;
@@ -208,17 +228,6 @@
   }
   .total-box .label{font-size:13px;color:var(--sub);}
   .total-box .amount{font-size:20px;font-weight:900;color:var(--ok);font-family:'JetBrains Mono', monospace;}
-  .total-msg{
-    font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-    color:var(--ink);
-    margin-top:8px;
-    padding:10px 12px;
-    background:#FCFAF6;
-    border:1px solid var(--line);
-    border-radius:8px;
-    word-break:break-all;
-  }
   .copy-btn{
     width:100%;
     background:var(--ok);
@@ -234,7 +243,6 @@
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
   .copy-btn.copied{background:var(--ink);}
-  .copy-btn.small{padding:10px;font-size:13px;margin-top:8px;}
 
   .hint{
     font-size:12px;
@@ -282,7 +290,7 @@
   <header>
     <div class="eyebrow">韋德機車精品 · 大保養回報</div>
     <h1>回報訊息產生器</h1>
-    <div class="desc">勾選這次實際有做的項目，自動組成訊息＋算好總金額，複製貼到 LINE 傳給客人。</div>
+    <div class="desc">點開項目勾選這次實際有做的內容，自動組成訊息＋算好總金額，複製貼到 LINE 傳給客人。</div>
   </header>
 
   <div class="card">
@@ -313,14 +321,8 @@
   </div>
 
   <div class="card">
-    <h2>保養項目（點擊勾選）</h2>
+    <h2>保養項目（點擊展開）</h2>
     <div id="itemsList"></div>
-  </div>
-
-  <div class="card">
-    <h2>皮帶更換（可新增細項，例如普利珠）</h2>
-    <div id="beltItemsList"></div>
-    <button class="add-btn" id="addBeltBtn" type="button">＋ 新增細項</button>
   </div>
 
   <div class="card">
@@ -349,19 +351,20 @@
 <script>
 const ITEMS = [
   { id:'item1', name:'超音波清洗噴油嘴/節流閥清洗/引擎室泡沫積碳清理', type:'fixed', amount:1000 },
-  { id:'item2', name:'煞車油更換', type:'choice', options:['單邊','雙邊'], optionAmounts:{'單邊':500,'雙邊':800} },
-  { id:'item3', name:'空濾更換', type:'choice', options:['高流量','原廠'], amount:'' },
-  { id:'item4', name:'火星塞更換', type:'choice', options:['白金','鈦合金'], optionAmounts:{'白金':300,'鈦合金':550} },
-  { id:'item5', name:'傳動室清理', type:'fixed', amount:300 },
-  { id:'item6', name:'水箱水更換', type:'fixed', amount:800 },
-  { id:'item6b', name:'煞車皮更換', type:'spec', specPlaceholder:'例如：品牌/型號', amount:0 },
-  { id:'item6c', name:'輪胎更換', type:'spec', specPlaceholder:'例如：品牌/規格', amount:0 },
-  { id:'item7', name:'機油更換', type:'spec', specPlaceholder:'例如：力豹式10 40', amount:0 },
-  { id:'item8', name:'齒輪油更換', type:'spec', specPlaceholder:'例如：G100', amount:0 },
+  { id:'brake_oil', name:'煞車油更換', type:'choice', options:['前面','後面','前後一起'], optionAmounts:{'前面':500,'後面':500,'前後一起':800} },
+  { id:'air_filter', name:'空濾更換', type:'choice', options:['原廠','高流量'] },
+  { id:'spark_plug', name:'火星塞更換', type:'choice', options:['白金','銥合金'], optionAmounts:{'白金':300,'銥合金':500} },
+  { id:'transmission', name:'傳動檢查清理', type:'transmission' },
+  { id:'coolant', name:'水箱水更換', type:'fixed', amount:800 },
+  { id:'tire', name:'輪胎更換', type:'splitspec', parts:['前','後'] },
+  { id:'brakepad', name:'煞車皮更換', type:'splitspec', parts:['前','後'] },
+  { id:'engine_oil', name:'機油更換', type:'spec', specPlaceholder:'請輸入機油品牌/規格' },
+  { id:'gear_oil', name:'齒輪油更換', type:'spec', specPlaceholder:'請輸入齒輪油品牌/規格' },
+  { id:'tire_pressure', name:'胎壓檢查', type:'flagsplit', parts:['前','後'] },
+  { id:'battery', name:'電瓶檢查', type:'battery' },
 ];
 
 let otherItems = [];
-let beltItems = [];
 
 function addRow(arr, renderFn){
   arr.push({ spec:'', amount:'' });
@@ -402,17 +405,38 @@ function renderRows(arr, wrapId, placeholder, renderFn){
 function renderOtherItems(){ renderRows(otherItems, 'otherItemsList', '例如：koso 普立珠', renderOtherItems); }
 function addOtherItem(){ addRow(otherItems, renderOtherItems); }
 
-function renderBeltItems(){ renderRows(beltItems, 'beltItemsList', '例如：普利珠、彈簧、皮帶型號', renderBeltItems); }
-function addBeltItem(){ addRow(beltItems, renderBeltItems); }
-
 const state = {};
 ITEMS.forEach(it => {
-  state[it.id] = {
-    checked:false,
-    choice: it.options ? it.options[0] : null,
-    amount: it.type==='choice' ? (it.optionAmounts ? it.optionAmounts[it.options[0]] : it.amount) : (it.amount||''),
-    spec: ''
-  };
+  if(it.type === 'transmission'){
+    state[it.id] = {
+      checked:false,
+      subs:{
+        clean:{checked:false},
+        belt:{checked:false, content:'', amount:''},
+        puli:{checked:false, content:'', amount:''},
+        rear:{checked:false, content:'', amount:''},
+        spring:{checked:false, amount:''},
+        bead:{checked:false, amount:''}
+      }
+    };
+  } else if(it.type === 'splitspec'){
+    const subs = {};
+    it.parts.forEach(p => subs[p] = {checked:false, content:'', amount:''});
+    state[it.id] = { checked:false, subs };
+  } else if(it.type === 'flagsplit'){
+    const subs = {};
+    it.parts.forEach(p => subs[p] = {checked:false});
+    state[it.id] = { checked:false, subs };
+  } else if(it.type === 'battery'){
+    state[it.id] = { checked:false, choice:'replace', model:'', amount:'' };
+  } else {
+    state[it.id] = {
+      checked:false,
+      choice: it.options ? it.options[0] : null,
+      amount: it.type==='choice' ? (it.optionAmounts ? it.optionAmounts[it.options[0]] : '') : (it.amount||''),
+      spec: ''
+    };
+  }
 });
 
 const listEl = document.getElementById('itemsList');
@@ -425,27 +449,86 @@ function render(){
     div.className = 'item' + (s.checked ? ' checked' : '');
 
     let detailHtml = '';
+
     if(it.type === 'choice'){
       detailHtml += `<div class="choice-group">` +
         it.options.map(opt => `<div class="choice ${s.choice===opt?'active':''}" data-item="${it.id}" data-opt="${opt}">${opt}</div>`).join('') +
         `</div>`;
       detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" value="${s.amount}"></div>`;
+
     } else if(it.type === 'spec'){
       detailHtml += `<div class="price-row"><span>規格：</span><input type="text" data-item="${it.id}" data-field="spec" placeholder="${it.specPlaceholder}" value="${s.spec}"></div>`;
       detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" placeholder="0" value="${s.amount}"></div>`;
-      if(it.noteSuffix){
-        detailHtml += `<div class="price-row"><span style="width:auto;">訊息會自動加註「${it.noteSuffix}」</span></div>`;
-      }
+
     } else if(it.type === 'fixed'){
       detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-field="amount" value="${s.amount}"></div>`;
-    } else if(it.type === 'flag'){
-      detailHtml += `<div class="price-row"><span style="width:auto;">不計費，僅標註「${it.suffix}」</span></div>`;
+
+    } else if(it.type === 'transmission'){
+      const subs = s.subs;
+      detailHtml += `
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="clean" ${subs.clean.checked?'checked':''}>清洗傳動<span class="sub-note">$300／若下方有更換皮帶則免收費</span></label>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="belt" ${subs.belt.checked?'checked':''}>皮帶更換</label>
+          <div class="price-row"><span>內容：</span><input type="text" data-item="transmission" data-sub="belt" data-sub-field="content" placeholder="例如：皮帶型號" value="${subs.belt.content}"></div>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="belt" data-sub-field="amount" value="${subs.belt.amount}"></div>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="puli" ${subs.puli.checked?'checked':''}>普利盤組</label>
+          <div class="price-row"><span>內容：</span><input type="text" data-item="transmission" data-sub="puli" data-sub-field="content" value="${subs.puli.content}"></div>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="puli" data-sub-field="amount" value="${subs.puli.amount}"></div>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="rear" ${subs.rear.checked?'checked':''}>後組</label>
+          <div class="price-row"><span>內容：</span><input type="text" data-item="transmission" data-sub="rear" data-sub-field="content" value="${subs.rear.content}"></div>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="rear" data-sub-field="amount" value="${subs.rear.amount}"></div>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="spring" ${subs.spring.checked?'checked':''}>大彈簧</label>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="spring" data-sub-field="amount" value="${subs.spring.amount}"></div>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="bead" ${subs.bead.checked?'checked':''}>普利珠</label>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="bead" data-sub-field="amount" value="${subs.bead.amount}"></div>
+        </div>
+      `;
+
+    } else if(it.type === 'splitspec'){
+      detailHtml += it.parts.map(p => {
+        const sub = s.subs[p];
+        return `
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="${it.id}" data-sub-toggle="${p}" ${sub.checked?'checked':''}>${p}輪</label>
+          <div class="price-row"><span>內容：</span><input type="text" data-item="${it.id}" data-sub="${p}" data-sub-field="content" placeholder="品牌/規格" value="${sub.content}"></div>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="${it.id}" data-sub="${p}" data-sub-field="amount" value="${sub.amount}"></div>
+        </div>`;
+      }).join('');
+
+    } else if(it.type === 'flagsplit'){
+      detailHtml += it.parts.map(p => {
+        const sub = s.subs[p];
+        return `
+        <div class="sub-group" style="padding:6px 10px;">
+          <label class="sub-check"><input type="checkbox" data-item="${it.id}" data-sub-toggle="${p}" ${sub.checked?'checked':''}>${p}輪已檢查</label>
+        </div>`;
+      }).join('');
+
+    } else if(it.type === 'battery'){
+      detailHtml += `<div class="choice-group">
+        <div class="batt-choice ${s.choice==='replace'?'active':''}" data-item="battery" data-battery-opt="replace">更換</div>
+        <div class="batt-choice ${s.choice==='ok'?'active':''}" data-item="battery" data-battery-opt="ok">免更換，壽命正常</div>
+      </div>`;
+      if(s.choice === 'replace'){
+        detailHtml += `<div class="price-row"><span>型號：</span><input type="text" data-item="battery" data-field="model" value="${s.model}"></div>`;
+        detailHtml += `<div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="battery" data-field="amount" value="${s.amount}"></div>`;
+      }
     }
 
     div.innerHTML = `
       <div class="item-top" data-toggle="${it.id}">
         <div class="checkbox"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="item-name">${it.name}${it.type==='fixed' ? ' <span style="color:var(--sub);font-weight:400;">- '+it.amount+'元</span>' : ''}${it.type==='flag' ? ' <span style="color:var(--sub);font-weight:400;">('+it.suffix+')</span>' : ''}</div>
+        <div class="item-name">${it.name}${it.type==='fixed' ? ' <span style="color:var(--sub);font-weight:400;">- '+it.amount+'元</span>' : ''}</div>
       </div>
       <div class="item-detail">${detailHtml}</div>
     `;
@@ -474,6 +557,33 @@ function attachEvents(){
       render();
     });
   });
+  listEl.querySelectorAll('.batt-choice').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = el.getAttribute('data-item');
+      const opt = el.getAttribute('data-battery-opt');
+      state[id].choice = opt;
+      render();
+    });
+  });
+  listEl.querySelectorAll('[data-sub-toggle]').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+    el.addEventListener('change', () => {
+      const id = el.getAttribute('data-item');
+      const sub = el.getAttribute('data-sub-toggle');
+      state[id].subs[sub].checked = el.checked;
+      render();
+    });
+  });
+  listEl.querySelectorAll('[data-sub-field]').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+    el.addEventListener('input', () => {
+      const id = el.getAttribute('data-item');
+      const sub = el.getAttribute('data-sub');
+      const field = el.getAttribute('data-sub-field');
+      state[id].subs[sub][field] = el.value;
+    });
+  });
   listEl.querySelectorAll('input[data-field]').forEach(el => {
     el.addEventListener('click', e => e.stopPropagation());
     el.addEventListener('input', () => {
@@ -487,13 +597,8 @@ function attachEvents(){
 render();
 renderOtherItems();
 document.getElementById('addOtherBtn').addEventListener('click', addOtherItem);
-addOtherItem(); // start with one empty row for convenience
+addOtherItem();
 
-renderBeltItems();
-document.getElementById('addBeltBtn').addEventListener('click', addBeltItem);
-addBeltItem(); // start with one empty row for convenience
-
-// default date = today, show ROC preview
 const dateInput = document.getElementById('serviceDate');
 const rocPreview = document.getElementById('rocPreview');
 const today = new Date();
@@ -519,52 +624,107 @@ document.getElementById('generateBtn').addEventListener('click', () => {
 
   let lines = [];
   let total = 0;
+  let amountsList = [];
 
   ITEMS.forEach(it => {
     const s = state[it.id];
-    if(!s.checked) return;
-    const amt = parseInt(s.amount, 10) || 0;
-    total += amt;
 
     if(it.type === 'fixed'){
+      if(!s.checked) return;
+      const amt = parseInt(s.amount, 10) || 0;
+      total += amt; amountsList.push(amt);
       lines.push(`🔧${it.name}-${s.amount || it.amount}`);
-    } else if(it.type === 'choice'){
-      lines.push(`🔧${it.name}-${s.choice}${s.amount}`);
-    } else if(it.type === 'spec'){
-      const specPart = s.spec ? s.spec + ' ' : '';
-      const noteSuffix = it.noteSuffix ? ' ' + it.noteSuffix : '';
-      lines.push(`🔧${it.name}-${specPart}${s.amount || 0}${noteSuffix}`);
-    } else if(it.type === 'flag'){
-      lines.push(`🔧${it.name}-${it.suffix}`);
-    }
-  });
 
-  beltItems.forEach(row => {
-    if(!row.spec && !row.amount) return;
-    const amt = parseInt(row.amount, 10) || 0;
-    total += amt;
-    const specPart = row.spec ? row.spec + ' ' : '';
-    lines.push(`🔧更換皮帶-${specPart}${amt}`);
+    } else if(it.type === 'choice'){
+      if(!s.checked) return;
+      const amt = parseInt(s.amount, 10) || 0;
+      total += amt; amountsList.push(amt);
+      lines.push(`🔧${it.name}-${s.choice}${s.amount}`);
+
+    } else if(it.type === 'spec'){
+      if(!s.checked) return;
+      const amt = parseInt(s.amount, 10) || 0;
+      total += amt; amountsList.push(amt);
+      const specPart = s.spec ? s.spec + ' ' : '';
+      lines.push(`🔧${it.name}-${specPart}${amt}`);
+
+    } else if(it.type === 'transmission'){
+      const subs = s.subs;
+      if(subs.clean.checked){
+        if(subs.belt.checked){
+          lines.push(`🔧清洗傳動-免收費(已更換皮帶)`);
+        } else {
+          total += 300; amountsList.push(300);
+          lines.push(`🔧清洗傳動-300`);
+        }
+      }
+      if(subs.belt.checked){
+        const amt = parseInt(subs.belt.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const c = subs.belt.content ? subs.belt.content + ' ' : '';
+        lines.push(`🔧皮帶更換-${c}${amt}`);
+      }
+      if(subs.puli.checked){
+        const amt = parseInt(subs.puli.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const c = subs.puli.content ? subs.puli.content + ' ' : '';
+        lines.push(`🔧普利盤組-${c}${amt}`);
+      }
+      if(subs.rear.checked){
+        const amt = parseInt(subs.rear.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const c = subs.rear.content ? subs.rear.content + ' ' : '';
+        lines.push(`🔧後組-${c}${amt}`);
+      }
+      if(subs.spring.checked){
+        const amt = parseInt(subs.spring.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        lines.push(`🔧大彈簧-${amt}`);
+      }
+      if(subs.bead.checked){
+        const amt = parseInt(subs.bead.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        lines.push(`🔧普利珠-${amt}`);
+      }
+
+    } else if(it.type === 'splitspec'){
+      it.parts.forEach(p => {
+        const sub = s.subs[p];
+        if(!sub.checked) return;
+        const amt = parseInt(sub.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const c = sub.content ? sub.content + ' ' : '';
+        lines.push(`🔧${it.name}(${p})-${c}${amt}`);
+      });
+
+    } else if(it.type === 'flagsplit'){
+      it.parts.forEach(p => {
+        if(!s.subs[p].checked) return;
+        lines.push(`🔧${it.name}(${p})-已檢查`);
+      });
+
+    } else if(it.type === 'battery'){
+      if(!s.checked) return;
+      if(s.choice === 'replace'){
+        const amt = parseInt(s.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const m = s.model ? s.model + ' ' : '';
+        lines.push(`🔧電瓶檢查-更換 ${m}${amt}`);
+      } else {
+        lines.push(`🔧電瓶檢查-免更換，壽命正常`);
+      }
+    }
   });
 
   otherItems.forEach(row => {
     if(!row.spec && !row.amount) return;
     const amt = parseInt(row.amount, 10) || 0;
-    total += amt;
+    total += amt; amountsList.push(amt);
     const specPart = row.spec ? row.spec + ' ' : '';
     lines.push(`🔧其他項目-${specPart}${amt}`);
   });
 
-  const amounts = ITEMS.filter(it => state[it.id].checked && it.type !== 'flag').map(it => parseInt(state[it.id].amount,10)||0);
-  beltItems.forEach(row => {
-    if(!row.spec && !row.amount) return;
-    amounts.push(parseInt(row.amount,10)||0);
-  });
-  otherItems.forEach(row => {
-    if(!row.spec && !row.amount) return;
-    amounts.push(parseInt(row.amount,10)||0);
-  });
-  const sumFormula = amounts.join('+');
+  const sumFormula = amountsList.join('+');
   const totalFormatted = total.toLocaleString('en-US');
 
   const msg =
@@ -602,7 +762,7 @@ function copyText(text, btn){
     document.execCommand('copy');
     document.body.removeChild(ta);
     btn.textContent = '已複製 ✓';
-    setTimeout(() => { btn.textContent = btn.getAttribute('data-original'); }, 1800);
+    setTimeout(() => { btn.textContent = '複製訊息'; }, 1800);
   });
 }
 
