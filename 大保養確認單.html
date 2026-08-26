@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>韋德機車精品｜大保養項目確認單</title>
+<style>
+  :root{
+    --orange:#FF7A1A;
+    --orange-dark:#E8620A;
+    --bg:#FAFAF7;
+    --card:#FFFFFF;
+    --text:#2B2620;
+    --sub:#8A8378;
+    --line:#EFE9E1;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:120px;
+  }
+  header{
+    background:linear-gradient(135deg,var(--orange),var(--orange-dark));
+    color:#fff;
+    padding:22px 18px 26px;
+    text-align:center;
+  }
+  header h1{margin:0;font-size:20px;font-weight:700;}
+  header p{margin:6px 0 0;font-size:13px;opacity:.9;}
+
+  .wrap{padding:14px;max-width:520px;margin:0 auto;}
+
+  .info-card{
+    background:var(--card);
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:14px;
+    box-shadow:0 1px 4px rgba(0,0,0,.05);
+  }
+  .info-row{display:flex;gap:10px;margin-bottom:10px;}
+  .info-row:last-child{margin-bottom:0;}
+  .info-row label{flex:1;}
+  .info-row label span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px;}
+  .info-row input{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    background:#fff;
+  }
+
+  .item{
+    background:var(--card);
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,.05);
+    border:2px solid transparent;
+    transition:border-color .15s;
+  }
+  .item.checked{border-color:var(--orange);}
+
+  .item-top{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    cursor:pointer;
+  }
+  .item-top input[type=checkbox]{
+    width:24px;height:24px;
+    flex-shrink:0;
+    margin-top:1px;
+    accent-color:var(--orange);
+  }
+  .item-title{font-size:15px;font-weight:600;line-height:1.4;}
+  .item-note{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.5;}
+  .item-price{
+    font-size:14px;
+    font-weight:700;
+    color:var(--orange-dark);
+    white-space:nowrap;
+    margin-left:auto;
+    padding-left:8px;
+  }
+
+  .sub-options{
+    display:none;
+    margin:10px 0 0 36px;
+    padding-top:10px;
+    border-top:1px dashed var(--line);
+  }
+  .item.checked .sub-options{display:block;}
+  .radio-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 0;
+    font-size:14px;
+  }
+  .radio-row input{accent-color:var(--orange);width:18px;height:18px;flex-shrink:0;}
+  .radio-row .rlabel{flex:1;}
+  .radio-row .rprice{color:var(--orange-dark);font-weight:700;font-size:13px;}
+
+  .parts-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:5px 0;
+    font-size:14px;
+  }
+  .parts-row input{accent-color:var(--orange);width:18px;height:18px;flex-shrink:0;}
+
+  .sub-input{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    background:#fff;
+    margin-top:2px;
+  }
+
+  .sub-block{margin-bottom:10px;}
+  .sub-block:last-child{margin-bottom:0;}
+  .sub-block .parts-row{padding:2px 0 4px;}
+
+  textarea{
+    width:100%;
+    min-height:80px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px;
+    font-size:14px;
+    font-family:inherit;
+    resize:vertical;
+    background:#fff;
+  }
+
+  .section-label{
+    font-size:13px;
+    font-weight:700;
+    color:var(--sub);
+    margin:18px 4px 8px;
+  }
+
+  .bottom-bar{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    background:#fff;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow:0 -2px 10px rgba(0,0,0,.08);
+  }
+  .btn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn-generate{background:var(--orange);color:#fff;}
+  .btn-generate:active{background:var(--orange-dark);}
+
+  .result-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    z-index:50;
+    align-items:flex-end;
+  }
+  .result-overlay.show{display:flex;}
+  .result-sheet{
+    background:#fff;
+    width:100%;
+    max-height:82vh;
+    border-radius:18px 18px 0 0;
+    padding:16px;
+    overflow-y:auto;
+  }
+  .result-sheet h2{margin:0 0 10px;font-size:16px;}
+  .result-text{
+    white-space:pre-wrap;
+    font-size:13.5px;
+    line-height:1.7;
+    background:var(--bg);
+    border-radius:10px;
+    padding:12px;
+    border:1px solid var(--line);
+    margin-bottom:12px;
+  }
+  .result-btns{display:flex;gap:10px;}
+  .btn-copy{background:var(--orange);color:#fff;}
+  .btn-close{background:var(--line);color:var(--text);}
+  .toast{
+    position:fixed;
+    top:16px;left:50%;
+    transform:translateX(-50%);
+    background:#2B2620;
+    color:#fff;
+    padding:10px 18px;
+    border-radius:20px;
+    font-size:13px;
+    z-index:100;
+    opacity:0;
+    transition:opacity .25s;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>韋德機車精品</h1>
+  <p>大保養項目確認單　請勾選您要保養的項目</p>
+</header>
+
+<div class="wrap">
+
+  <div class="info-card">
+    <div class="info-row">
+      <label><span>客戶姓名</span><input type="text" id="custName" placeholder="選填"></label>
+      <label><span>車牌號碼</span><input type="text" id="plateNo" placeholder="選填"></label>
+    </div>
+  </div>
+
+  <!-- 1 超音波清洗 -->
+  <div class="item" data-item data-type="simple">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">超音波清洗噴油嘴＋節流閥清洗＋引擎室泡沫積碳清理</div>
+      </div>
+      <div class="item-price">$1000</div>
+    </label>
+  </div>
+
+  <!-- 2 煞車油（點開選前/後/前後） -->
+  <div class="item" data-item data-type="radio">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">煞車油更換</div>
+        <div class="item-note">點開選擇要更換前輪／後輪／前後輪</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <label class="radio-row">
+        <input type="radio" name="brake" value="前煞車油" data-price="500" checked>
+        <span class="rlabel">前煞車油</span><span class="rprice">$500</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="brake" value="後煞車油" data-price="500">
+        <span class="rlabel">後煞車油</span><span class="rprice">$500</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="brake" value="前後煞車油一起換" data-price="800">
+        <span class="rlabel">前後煞車油一起換</span><span class="rprice">$800</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- 3 空濾（點開選原廠/高流量） -->
+  <div class="item" data-item data-type="radio">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">空濾更換</div>
+        <div class="item-note">每5000公里更換一次，點開選擇原廠／高流量，實際金額依車種報價</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <label class="radio-row">
+        <input type="radio" name="air" value="空濾更換（原廠）" data-price-range="200-400" checked>
+        <span class="rlabel">原廠</span><span class="rprice">$200-400</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="air" value="空濾更換（高流量）" data-price-range="500-800">
+        <span class="rlabel">高流量</span><span class="rprice">$500-800</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- 4 火星塞（點開選白金/銥合金） -->
+  <div class="item" data-item data-type="radio">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">火星塞更換</div>
+        <div class="item-note">每1萬公里更換一次，點開選擇白金／銥合金</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <label class="radio-row">
+        <input type="radio" name="plug" value="火星塞更換（白金）" data-price="300" checked>
+        <span class="rlabel">白金</span><span class="rprice">$300</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="plug" value="火星塞更換（銥合金）" data-price="500">
+        <span class="rlabel">銥合金</span><span class="rprice">$500</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- 5 輪胎更換（前/後 客人自行輸入） -->
+  <div class="item" data-item data-type="freetext_multi">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">輪胎更換</div>
+        <div class="item-note">請勾選前輪／後輪並輸入規格或需求，費用另計</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <div class="sub-block">
+        <label class="parts-row"><input type="checkbox" data-part-check>前輪</label>
+        <input type="text" class="sub-input" data-part-input placeholder="請輸入前輪胎規格／需求">
+      </div>
+      <div class="sub-block">
+        <label class="parts-row"><input type="checkbox" data-part-check>後輪</label>
+        <input type="text" class="sub-input" data-part-input placeholder="請輸入後輪胎規格／需求">
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 煞車皮更換（前/後 客人自行輸入） -->
+  <div class="item" data-item data-type="freetext_multi">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">煞車皮更換</div>
+        <div class="item-note">請勾選前輪／後輪並輸入規格或需求，費用另計</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <div class="sub-block">
+        <label class="parts-row"><input type="checkbox" data-part-check>前輪</label>
+        <input type="text" class="sub-input" data-part-input placeholder="請輸入前輪煞車皮規格／需求">
+      </div>
+      <div class="sub-block">
+        <label class="parts-row"><input type="checkbox" data-part-check>後輪</label>
+        <input type="text" class="sub-input" data-part-input placeholder="請輸入後輪煞車皮規格／需求">
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 傳動室清理 + 零件清單 -->
+  <div class="item" data-item data-type="transmission">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">傳動室清理（檢查・清理傳動）</div>
+        <div class="item-note">若有勾選下方更換零件，清理費免收，零件費用另外報價</div>
+      </div>
+      <div class="item-price">$300</div>
+    </label>
+    <div class="sub-options">
+      <div class="item-note" style="margin-bottom:4px;">需要更換的零件（複選，費用另外報價）</div>
+      <label class="parts-row"><input type="checkbox" data-part>皮帶</label>
+      <label class="parts-row"><input type="checkbox" data-part>珠子</label>
+      <label class="parts-row"><input type="checkbox" data-part>普利盤組</label>
+      <label class="parts-row"><input type="checkbox" data-part>後組</label>
+      <label class="parts-row"><input type="checkbox" data-part>大彈簧</label>
+    </div>
+  </div>
+
+  <!-- 6 水箱 -->
+  <div class="item" data-item data-type="simple">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">美式馬水箱精／水箱水更換</div>
+      </div>
+      <div class="item-price">$800</div>
+    </label>
+  </div>
+
+  <!-- 7 機油（客人輸入） -->
+  <div class="item" data-item data-type="freetext">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">機油更換</div>
+        <div class="item-note">請輸入想使用的機油品牌／規格，費用另計</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <input type="text" class="sub-input" data-freetext placeholder="例：Motul 5100 10W40">
+    </div>
+  </div>
+
+  <!-- 8 齒輪油（客人輸入） -->
+  <div class="item" data-item data-type="freetext">
+    <label class="item-top">
+      <input type="checkbox" data-check>
+      <div style="flex:1">
+        <div class="item-title">齒輪油更換</div>
+        <div class="item-note">請輸入想使用的齒輪油品牌／規格，費用另計</div>
+      </div>
+    </label>
+    <div class="sub-options">
+      <input type="text" class="sub-input" data-freetext placeholder="例：原廠齒輪油">
+    </div>
+  </div>
+
+  <div class="section-label">其他問題／備註</div>
+  <div class="info-card">
+    <textarea id="otherNote" placeholder="有其他狀況或需求，請寫在這裡…"></textarea>
+  </div>
+
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-generate" onclick="generateResult()">產生保養紀錄</button>
+</div>
+
+<div class="result-overlay" id="overlay">
+  <div class="result-sheet">
+    <h2>保養紀錄內容</h2>
+    <div class="result-text" id="resultText"></div>
+    <div class="result-btns">
+      <button class="btn btn-copy" style="flex:1" onclick="sendToLine()">傳送給我們</button>
+      <button class="btn btn-close" style="flex:1" onclick="closeOverlay()">關閉</button>
+    </div>
+    <button class="btn" style="margin-top:8px;background:#fff;border:1px solid var(--line);color:var(--sub);font-size:13px;padding:10px;" onclick="copyResult()">或複製文字自行貼上</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">已複製到剪貼簿</div>
+
+<script>
+document.querySelectorAll('[data-check]').forEach(cb=>{
+  cb.addEventListener('change', ()=>{
+    cb.closest('[data-item]').classList.toggle('checked', cb.checked);
+  });
+});
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
+}
+
+function generateResult(){
+  const items = document.querySelectorAll('[data-item]');
+  let lines = [];
+  let subtotal = 0;
+  let hasVariable = false;
+
+  items.forEach(item=>{
+    const cb = item.querySelector('[data-check]');
+    if(!cb || !cb.checked) return;
+    const type = item.dataset.type;
+    const title = item.querySelector('.item-title').textContent.trim();
+
+    if(type === 'simple'){
+      const priceEl = item.querySelector('.item-price');
+      const price = parseInt(priceEl.textContent.replace(/\D/g,''));
+      lines.push(`✅ ${title} － $${price}`);
+      subtotal += price;
+
+    } else if(type === 'radio'){
+      const checkedRadio = item.querySelector('input[type=radio]:checked');
+      if(checkedRadio){
+        if(checkedRadio.dataset.price){
+          const p = parseInt(checkedRadio.dataset.price);
+          lines.push(`✅ ${checkedRadio.value} － $${p}`);
+          subtotal += p;
+        } else if(checkedRadio.dataset.priceRange){
+          lines.push(`✅ ${checkedRadio.value} － $${checkedRadio.dataset.priceRange}（依車種報價）`);
+          hasVariable = true;
+        }
+      }
+
+    } else if(type === 'transmission'){
+      const parts = [...item.querySelectorAll('[data-part]:checked')].map(p=>p.closest('.parts-row').textContent.trim());
+      if(parts.length){
+        lines.push(`✅ ${title} － 免費（更換零件）`);
+        lines.push(`　　更換零件（另外報價）：${parts.join('、')}`);
+        hasVariable = true;
+      } else {
+        lines.push(`✅ ${title} － $300`);
+        subtotal += 300;
+      }
+
+    } else if(type === 'freetext_multi'){
+      const subLines = [];
+      item.querySelectorAll('.sub-block').forEach(block=>{
+        const partCb = block.querySelector('[data-part-check]');
+        if(partCb && partCb.checked){
+          const label = block.querySelector('.parts-row').textContent.trim();
+          const val = block.querySelector('[data-part-input]').value.trim();
+          subLines.push(`${label}：${val || '未填規格'}`);
+        }
+      });
+      if(subLines.length){
+        lines.push(`✅ ${title} － ${subLines.join('；')}（費用另計）`);
+        hasVariable = true;
+      } else {
+        lines.push(`✅ ${title}（費用另計）`);
+        hasVariable = true;
+      }
+
+    } else if(type === 'freetext'){
+      const val = item.querySelector('[data-freetext]').value.trim();
+      lines.push(`✅ ${title}${val ? '（' + val + '）' : ''} － 費用另計`);
+      hasVariable = true;
+    }
+  });
+
+  const name = document.getElementById('custName').value.trim();
+  const plate = document.getElementById('plateNo').value.trim();
+  const note = document.getElementById('otherNote').value.trim();
+
+  let out = `============================\n`;
+  out += `韋德機車精品　大保養確認單\n`;
+  out += `日期：${todayStr()}\n`;
+  if(name) out += `客戶：${name}\n`;
+  if(plate) out += `車牌：${plate}\n`;
+  out += `============================\n`;
+
+  if(lines.length){
+    out += lines.join('\n') + '\n';
+  } else {
+    out += '（尚未勾選任何項目）\n';
+  }
+
+  out += `----------------------------\n`;
+  out += `固定項目小計：$${subtotal}${hasVariable ? '（不含空濾/機油等變動項目）' : ''}\n`;
+
+  if(note){
+    out += `----------------------------\n`;
+    out += `其他問題／備註：\n${note}\n`;
+  }
+  out += `============================`;
+
+  document.getElementById('resultText').textContent = out;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function sendToLine(){
+  const text = document.getElementById('resultText').textContent;
+  const lineUrl = 'https://line.me/R/oaMessage/@wademoto/?' + encodeURIComponent(text);
+  window.location.href = lineUrl;
+}
+
+function closeOverlay(){
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+async function copyResult(){
+  const text = document.getElementById('resultText').textContent;
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('已複製到剪貼簿');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try{
+      document.execCommand('copy');
+      showToast('已複製到剪貼簿');
+    }catch(err){
+      showToast('複製失敗，請長按文字手動複製');
+    }
+    document.body.removeChild(ta);
+  }
+}
+</script>
+
+</body>
+</html>
