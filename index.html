@@ -416,7 +416,8 @@ ITEMS.forEach(it => {
         puli:{checked:false, content:'', amount:''},
         rear:{checked:false, content:'', amount:''},
         spring:{checked:false, amount:''},
-        bead:{checked:false, amount:''}
+        bead:{checked:false, amount:''},
+        clutchplate:{checked:false, content:'', amount:''}
       }
     };
   } else if(it.type === 'splitspec'){
@@ -491,6 +492,11 @@ function render(){
         <div class="sub-group">
           <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="bead" ${subs.bead.checked?'checked':''}>普利珠</label>
           <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="bead" data-sub-field="amount" value="${subs.bead.amount}"></div>
+        </div>
+        <div class="sub-group">
+          <label class="sub-check"><input type="checkbox" data-item="transmission" data-sub-toggle="clutchplate" ${subs.clutchplate.checked?'checked':''}>開閉盤更換</label>
+          <div class="price-row"><span>內容：</span><input type="text" data-item="transmission" data-sub="clutchplate" data-sub-field="content" placeholder="型號/備註" value="${subs.clutchplate.content}"></div>
+          <div class="price-row"><span>金額：</span><input type="text" inputmode="numeric" data-item="transmission" data-sub="clutchplate" data-sub-field="amount" value="${subs.clutchplate.amount}"></div>
         </div>
       `;
 
@@ -685,6 +691,12 @@ document.getElementById('generateBtn').addEventListener('click', () => {
         const amt = parseInt(subs.bead.amount, 10) || 0;
         total += amt; amountsList.push(amt);
         lines.push(`🔧普利珠-${amt}`);
+      }
+      if(subs.clutchplate.checked){
+        const amt = parseInt(subs.clutchplate.amount, 10) || 0;
+        total += amt; amountsList.push(amt);
+        const c = subs.clutchplate.content ? subs.clutchplate.content + ' ' : '';
+        lines.push(`🔧開閉盤更換-${c}${amt}`);
       }
 
     } else if(it.type === 'splitspec'){
