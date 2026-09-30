@@ -1,0 +1,285 @@
+<title>韋德T恤預購單</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: one narrow column like a shop order slip — header plate, numbered steps, sticky total bar */
+:root{
+  --bg:#eceef1; --paper:#ffffff; --ink:#15202b; --muted:#5d6874; --line:#d5dae0;
+  --accent:#e8a200; --accent-ink:#1a1400; --ok:#1f8a4c; --err:#c0392b;
+  --display:"Chakra Petch","Noto Sans TC",system-ui,sans-serif;
+  --body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --paper:#1b222a; --ink:#e9edf1; --muted:#9aa6b2; --line:#2e3843;
+  --accent:#f2b327; --accent-ink:#1a1400; --ok:#4cc27f; --err:#ef6b5b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --paper:#1b222a; --ink:#e9edf1; --muted:#9aa6b2; --line:#2e3843;
+  --accent:#f2b327; --accent-ink:#1a1400; --ok:#4cc27f; --err:#ef6b5b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;padding:0 16px}
+.wrap{max-width:560px;margin:0 auto;padding-block:20px 120px;display:flex;flex-direction:column;gap:16px}
+header{background:var(--ink);color:var(--bg);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;right:-30px;top:0;bottom:0;width:120px;
+  background:repeating-linear-gradient(135deg,var(--accent) 0 14px,transparent 14px 28px);opacity:.9}
+.shop{font-size:13px;letter-spacing:.12em;opacity:.8}
+h1{font-family:var(--display);font-size:28px;line-height:1.2;margin:0;text-wrap:balance;max-width:75%}
+.price{font-family:var(--display);font-size:20px;color:var(--accent)}
+.price small{font-family:var(--body);font-size:13px;color:var(--bg);opacity:.8;margin-left:6px}
+section{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+h2{font-size:17px;margin:0;display:flex;align-items:center;gap:10px}
+h2 .n{font-family:var(--display);background:var(--accent);color:var(--accent-ink);width:26px;height:26px;border-radius:6px;display:grid;place-items:center;font-size:15px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+input[type=text],input[type=tel],select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* item rows */
+.item{border:1.5px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.item-head{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.rm{font:inherit;font-size:13px;background:none;border:0;color:var(--err);cursor:pointer;padding:4px}
+.sub{font-size:13px;color:var(--muted)}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.sw{font:inherit;cursor:pointer;background:var(--bg);border:2px solid transparent;border-radius:10px;padding:6px 2px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink)}
+.sw .dot{width:30px;height:30px;border-radius:50%;border:1px solid rgba(128,128,128,.45)}
+.sw .no{font-family:var(--display);font-size:13px;line-height:1}
+.sw .nm{font-size:11px;line-height:1.2;white-space:nowrap}
+.sw[aria-pressed=true]{border-color:var(--accent);background:var(--paper);box-shadow:0 0 0 2px var(--accent) inset}
+.sizes{display:flex;flex-wrap:wrap;gap:8px}
+.sz{font-family:var(--display);font-size:16px;cursor:pointer;min-width:56px;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.sz[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qty{display:flex;align-items:center;gap:10px}
+.qty button{font-family:var(--display);font-size:20px;width:42px;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.qty output{font-family:var(--display);font-size:20px;min-width:28px;text-align:center}
+.pick{font-size:14px;background:var(--bg);border-radius:8px;padding:8px 10px}
+.pick b{font-family:var(--display)}
+.add{font:inherit;font-weight:700;cursor:pointer;border:1.5px dashed var(--muted);background:none;color:var(--ink);border-radius:12px;padding:12px}
+
+/* size chart */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+th,td{padding:7px 4px;text-align:center;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:13px}
+td:first-child{font-family:var(--display);font-weight:700}
+.measure{display:grid;grid-template-columns:1fr;gap:12px}
+.measure svg{width:100%;max-width:340px;height:auto;margin:0 auto;display:block}
+.how{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.how b{color:var(--ink)}
+.tip{margin:0;font-size:14px;background:var(--bg);border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px}
+tbody tr:nth-child(odd){background:var(--bg)}
+
+.bank{display:flex;flex-direction:column;gap:4px;background:var(--bg);border-radius:10px;padding:12px}
+.acct{font-family:var(--display);font-size:24px;letter-spacing:.04em;user-select:all}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;cursor:pointer;border-radius:10px;padding:10px 14px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.line{background:#06c755;border-color:#06c755;color:#fff}
+.btn.big{width:100%;padding:14px;font-size:17px}
+
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--bg);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));z-index:5}
+.bar-in{max-width:560px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tot{font-family:var(--display);font-size:24px;color:var(--accent)}
+.tot small{font-family:var(--body);font-size:13px;color:var(--bg);opacity:.8;margin-right:6px}
+
+#err{color:var(--err);font-size:14px;margin:0}
+#result pre{margin:0;white-space:pre-wrap;font-family:var(--body);font-size:14px;background:var(--bg);border-radius:10px;padding:12px;max-height:320px;overflow:auto}
+.steps{margin:0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.toast{font-size:13px;color:var(--ok);min-height:1em}
+@media (prefers-reduced-motion:no-preference){.sw,.sz{transition:background .12s,border-color .12s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="shop">韋德機車精品 WADE MOTO</div>
+    <h1>AG24000 素T 預購單</h1>
+    <div class="price">NT$700 / 件<small>預購需全額匯款</small></div>
+  </header>
+
+  <form id="f" novalidate>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section id="size">
+        <h2><span class="n">1</span>先看尺寸</h2>
+        <div class="measure">
+          <svg viewBox="0 0 320 262" role="img" aria-label="T恤平放量法：衣長、胸寬、肩寬、袖長">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"></path>
+              </marker>
+            </defs>
+            <path d="M130,20 Q160,44 190,20 L240,34 L300,90 L270,114 L235,98 L235,248 L85,248 L85,98 L50,114 L20,90 L80,34 Z"
+                  style="fill:var(--bg);stroke:var(--muted);stroke-width:2;stroke-linejoin:round"></path>
+            <g style="stroke:var(--accent);stroke-width:3">
+              <line x1="86" y1="36" x2="234" y2="36" marker-start="url(#ar)" marker-end="url(#ar)"></line>
+              <line x1="90" y1="112" x2="230" y2="112" marker-start="url(#ar)" marker-end="url(#ar)"></line>
+              <line x1="205" y1="32" x2="205" y2="242" marker-start="url(#ar)" marker-end="url(#ar)"></line>
+              <line x1="250" y1="26" x2="306" y2="79" marker-start="url(#ar)" marker-end="url(#ar)"></line>
+            </g>
+            <g style="fill:var(--ink);font:700 15px var(--body)">
+              <text x="112" y="60">① 肩寬</text>
+              <text x="118" y="136">② 胸寬</text>
+              <text x="160" y="196">③ 衣長</text>
+              <text x="262" y="30">④ 袖長</text>
+            </g>
+          </svg>
+          <ol class="how">
+            <li>① <b>肩寬</b>：左肩縫到右肩縫的直線距離</li>
+            <li>② <b>胸寬</b>：左右腋下之間的直線距離（單邊，不是胸圍）</li>
+            <li>③ <b>衣長</b>：肩膀最高點直直量到下擺</li>
+            <li>④ <b>袖長</b>：肩縫量到袖口</li>
+          </ol>
+        </div>
+        <p class="tip"><b>最準的方法：</b>拿一件你平常穿起來剛好的 T 恤，平放在桌上，用捲尺量上面 4 個地方，再對照下表挑最接近的尺寸。沒有捲尺就先看「建議身高體重」。</p>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>尺寸</th><th>①肩寬</th><th>②胸寬</th><th>③衣長</th><th>④袖長</th><th>身高cm</th><th>體重kg</th></tr></thead>
+            <tbody id="sizeRows"></tbody>
+          </table>
+        </div>
+        <p class="hint">單位 cm，平放測量，誤差 ±2–2.5cm 屬正常。身高體重僅供參考，以實物為準。表格可左右滑動。</p>
+      </section>
+
+      <section>
+        <h2><span class="n">2</span>選顏色・尺寸・件數</h2>
+        <p class="hint">點色塊選顏色，顏色編號會一起送出，避免弄錯。要多款請按「再加一款」。</p>
+        <div id="items" style="display:flex;flex-direction:column;gap:14px"></div>
+        <button type="button" class="add" id="addItem">＋ 再加一款</button>
+      </section>
+
+      <section>
+        <h2><span class="n">3</span>訂購人資料</h2>
+        <label class="f" for="name">姓名
+          <input type="text" id="name" autocomplete="name" placeholder="例：王小明">
+        </label>
+        <label class="f" for="phone">電話
+          <input type="tel" id="phone" autocomplete="tel" inputmode="numeric" placeholder="例：0912345678">
+        </label>
+      </section>
+
+      <section>
+        <h2><span class="n">4</span>匯款</h2>
+        <div class="bank">
+          <span class="sub">中國信託（822）</span>
+          <span class="acct" id="acct">820540357707</span>
+        </div>
+        <div class="row">
+          <button type="button" class="btn" id="copyAcct">複製帳號</button>
+        </div>
+        <label class="f" for="last5">匯款帳號末五碼（匯完再填也可以）
+          <input type="text" id="last5" inputmode="numeric" maxlength="5" placeholder="例：12345">
+        </label>
+        <span class="toast" id="acctToast"></span>
+      </section>
+
+      <p id="err" hidden></p>
+      <button type="submit" class="btn primary big">產生訂單</button>
+
+      <section id="result" hidden>
+        <h2><span class="n">5</span>傳訂單到 LINE</h2>
+        <pre id="out"></pre>
+        <div class="row">
+          <a class="btn line" id="lineBtn" href="https://line.me/R/ti/p/@WADEMOTO" target="_blank" rel="noopener">用 LINE 傳給韋德</a>
+          <button type="button" class="btn" id="copyOrder">複製訂單</button>
+        </div>
+        <span class="toast" id="orderToast"></span>
+        <ol class="steps">
+          <li>按「用 LINE 傳給韋德」，訂單會自動帶入對話框，按送出即可。</li>
+          <li>如果沒有自動帶入：先按「複製訂單」，再加 LINE 官方帳號 <b>@WADEMOTO</b>，貼上送出。</li>
+          <li>收到匯款並核對末五碼後，預購才算完成。</li>
+        </ol>
+      </section>
+    </div>
+  </form>
+</div>
+
+<div class="bar"><div class="bar-in">
+  <span id="barCount">共 1 件</span>
+  <span class="tot"><small>總金額</small><span id="barTotal">$700</span></span>
+</div></div>
+
+<script>
+const PRICE = 700;
+const COLORS = [
+  ["白色","#f7f7f5"],["黑色","#141414"],["麻灰","#a9a9a9"],["紅色","#e2261c"],["寶藍","#1646d8"],
+  ["暗夜灰","#3b3d42"],["藏青","#15203f"],["抹茶綠","#cfe39a"],["森林綠","#1d4d31"],["深駝色","#6b4b1f"],
+  ["雪青灰","#7682a3"],["奶油色","#f4ecc8"],["燕麥色","#d7d2c7"],["大象灰","#56564f"],["苔蘚綠","#7c8660"],
+  ["銀灰","#a6a6a4"],["淺粉橘","#f5b99a"],["海藍色","#8fe3cc"],["煙霧紫","#d9d9de"],["暗紅色","#7d1a1f"],
+  ["深卡其","#eadca0"],["土星棕","#6b5a44"]
+];
+const SIZES = [
+  ["S",66,49,44,19,"160-170","50-60"],["M",70,52,47,20,"165-175","60-75"],["L",73,55,50,22,"170-180","75-85"],
+  ["XL",76,58,53,24,"175-185","85-90"],["2XL",79,61,56,26,"180-190","90-105"],["3XL",81,64,59,27,"185-195","105-115"],
+  ["4XL",83,68,62,28,"190-210","115-125"]
+];
+document.getElementById("sizeRows").innerHTML = SIZES.map(r=>"<tr>"+[r[0],r[3],r[2],r[1],r[4],r[5],r[6]].map(c=>"<td>"+c+"</td>").join("")+"</tr>").join("");
+
+let items = [{color:null,size:null,qty:1}];
+const box = document.getElementById("items");
+
+function render(){
+  box.innerHTML = "";
+  items.forEach((it,i)=>{
+    const d = document.createElement("div");
+    d.className = "item";
+    const c = it.color!=null ? COLORS[it.color] : null;
+    d.innerHTML = `
+      <div class="item-head"><span>第 ${i+1} 款</span>${items.length>1?`<button type="button" class="rm" data-rm="${i}">刪除</button>`:""}</div>
+      <div class="sub">顏色</div>
+      <div class="swatches">${COLORS.map((k,ci)=>`<button type="button" class="sw" aria-pressed="${it.color===ci}" data-i="${i}" data-c="${ci}"><span class="dot" style="background:${k[1]}"></span><span class="no">${ci+1}</span><span class="nm">${k[0]}</span></button>`).join("")}</div>
+      <div class="sub">尺寸</div>
+      <div class="sizes">${SIZES.map(s=>`<button type="button" class="sz" aria-pressed="${it.size===s[0]}" data-i="${i}" data-s="${s[0]}">${s[0]}</button>`).join("")}</div>
+      <div class="sub">件數</div>
+      <div class="qty"><button type="button" data-i="${i}" data-q="-1" aria-label="減少">−</button><output>${it.qty}</output><button type="button" data-i="${i}" data-q="1" aria-label="增加">＋</button></div>
+      <div class="pick">已選：${c?`<b>${it.color+1}</b> 號 ${c[0]}`:"未選顏色"}｜${it.size?`<b>${it.size}</b>`:"未選尺寸"}｜${it.qty} 件</div>`;
+    box.appendChild(d);
+  });
+  const n = items.reduce((a,b)=>a+b.qty,0);
+  document.getElementById("barCount").textContent = "共 "+n+" 件";
+  document.getElementById("barTotal").textContent = "$"+(n*PRICE).toLocaleString();
+  document.getElementById("result").hidden = true;
+}
+box.addEventListener("click",e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  const i = +b.dataset.i;
+  if(b.dataset.rm!=null){ items.splice(+b.dataset.rm,1); }
+  else if(b.dataset.c!=null){ items[i].color = +b.dataset.c; }
+  else if(b.dataset.s!=null){ items[i].size = b.dataset.s; }
+  else if(b.dataset.q!=null){ items[i].qty = Math.max(1, Math.min(50, items[i].qty + +b.dataset.q)); }
+  const y = window.scrollY; render(); window.scrollTo(0,y);
+});
+document.getElementById("addItem").onclick = ()=>{ items.push({color:null,size:null,qty:1}); render(); };
+
+async function copy(text, toastId){
+  const t = document.getElementById(toastId);
+  try{ await navigator.clipboard.writeText(text); t.textContent = "已複製"; }
+  catch(_){ t.textContent = "無法自動複製，請長按文字選取後複製"; }
+  setTimeout(()=>t.textContent="",2500);
+}
+document.getElementById("copyAcct").onclick = ()=>copy("820540357707","acctToast");
+
+document.getElementById("f").addEventListener("submit",e=>{
+  e.preventDefault();
+  const err = document.getElementById("err");
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.replace(/[\s-]/g,"");
+  const last5 = document.getElementById("last5").value.trim();
+  const probs = [];
+  items.forEach((it,i)=>{
+    if(it.color==null) probs.push(`第 ${i+1} 款還沒選顏色`);
+    if(!it.size) probs.push(`第 ${i+1} 款還沒選尺寸`);
+  });
+  if(!name) probs.push("請填姓名");
+  if(!/^0\d{8,9}$/.test(phone)) probs.push("電話請填 09 開頭手機或市話號碼");
+  if(last5 && !/^\d{5}$/.test(last5)) probs.push("末五碼請填 5 位數字");
+  if(probs.length){ err.textContent = probs.join("、"); err.hidden = false; return; }
+  err.hidden = true;
+  const n = items.reduce((a,b)=>a+b.qty,0);
+  const lines = items.map(it=>`・${it.color+1}號 ${COLORS[it.color][0]}｜${it.size}｜${it.qty}件`);
+  const text = `【T恤預購單】\n姓名：${name}\n電話：${phone}\n${lines.join("\n")}\n件數合計：${n}件\n總金額：$${(n*PRICE).toLocaleString()}\n匯款末五碼：${last5||"（匯款後補上）"}`;
+  document.getElementById("out").textContent = text;
+  document.getElementById("lineBtn").href = "https://line.me/R/oaMessage/@WADEMOTO/?" + encodeURIComponent(text);
+  document.getElementById("copyOrder").onclick = ()=>copy(text,"orderToast");
+  const r = document.getElementById("result"); r.hidden = false;
+  r.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto":"smooth", block:"start"});
+});
+render();
+</script>
