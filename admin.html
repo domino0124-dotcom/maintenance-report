@@ -118,6 +118,7 @@ app.innerHTML = SECTIONS.map(sec => `
    PIN 碼鎖：輸入一次後這支手機會記住
    要換 PIN：把新 PIN 的 SHA-256 填到 PIN_HASH
    =============================================== */
+const USE_PIN = false;   // 要開啟 PIN 鎖改成 true
 const PIN_HASH = 'a655d31f8fc6fec80d8aa921a9fc803a5f5e84d80ce46ec58c6d12c6ebc2c5a9';
 const KEY = 'wade_admin_ok';
 const store = {
@@ -131,7 +132,7 @@ async function sha256(s) {
 }
 function unlock() { document.body.classList.remove('locked'); document.getElementById('lock').remove(); }
 
-if (store.get() === PIN_HASH) {
+if (!USE_PIN || store.get() === PIN_HASH) {
   unlock();
 } else {
   let input = '';
@@ -155,7 +156,8 @@ if (store.get() === PIN_HASH) {
     }
   });
 }
-document.getElementById('logout').addEventListener('click', () => { store.del(); location.reload(); });
+if (USE_PIN) document.getElementById('logout').addEventListener('click', () => { store.del(); location.reload(); });
+else document.getElementById('logout').remove();
 </script>
 </body>
 </html>
