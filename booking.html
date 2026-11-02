@@ -423,6 +423,8 @@ $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else
     cfg = await api('booking_config');
     renderServices(); renderDates(); updateSubmit();
     loading(false);
+    // 網址帶 ?tab=mine 時，直接打開「我的預約」
+    if (new URLSearchParams(location.search).get('tab') === 'mine'){ show('mine'); loadMine(); }
   } catch (e){
     loading(false);
     $('main').innerHTML = `<div class="empty">無法載入預約系統<br><small>${esc(e.message)}</small></div>`;
