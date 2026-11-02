@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>預約後台｜韋德機車精品</title>
+<style>
+  :root{--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--muted:#78716c;--line:#e7e5e4;--accent:#ea580c;--soft:#fff1e8;--ok:#16a34a;--okSoft:#dcfce7;--warn:#b45309;--warnSoft:#fef3c7;--danger:#dc2626;--dangerSoft:#fee2e2}
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  button{font-family:inherit;cursor:pointer}
+  .top{background:#1c1917;color:#fff;padding:16px 16px 10px;display:flex;justify-content:space-between;align-items:center}
+  .brand{font-weight:700;font-size:18px}
+  .sub{font-size:12px;opacity:.6;margin-top:2px}
+  .topbtns{display:flex;gap:6px}
+  .ghost{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:999px;padding:7px 12px;font-size:13px}
+  .tabs{display:flex;background:#1c1917;padding:0 12px;position:sticky;top:0;z-index:5}
+  .tab{flex:1;background:none;border:0;color:#a8a29e;font-size:15px;padding:12px 0;border-bottom:3px solid transparent}
+  .tab.on{color:#fff;border-color:var(--accent);font-weight:600}
+  main{padding:12px;max-width:600px;margin:0 auto}
+  .card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:15px;margin:0 0 10px}
+  .hint{font-size:13px;color:var(--muted);line-height:1.6;margin:6px 0 0}
+  .banner{background:var(--dangerSoft);color:var(--danger);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px;font-weight:600}
+  /* 日期 */
+  .dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;-webkit-overflow-scrolling:touch}
+  .date{flex:0 0 auto;min-width:68px;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 8px;text-align:center;color:var(--ink);position:relative}
+  .date span{display:block;font-size:12px;color:var(--muted)}
+  .date b{display:block;font-size:15px;margin-top:2px}
+  .date.on{border-color:var(--accent);background:var(--soft)}
+  .date.on span,.date.on b{color:var(--accent)}
+  .badge{position:absolute;top:-6px;right:-6px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;line-height:20px;border-radius:999px;padding:0 5px}
+  .summary{display:flex;gap:8px;margin-bottom:10px}
+  .sbox{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center}
+  .sbox b{display:block;font-size:20px}
+  .sbox span{font-size:12px;color:var(--muted)}
+  /* 預約卡 */
+  .bk-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .time{font-size:18px;font-weight:700}
+  .time.drop{font-size:15px;color:var(--accent)}
+  .svc{font-size:16px;font-weight:600;margin-top:4px}
+  .who{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.6}
+  .who a{color:var(--accent);font-weight:600;text-decoration:none}
+  .note{font-size:13px;background:var(--bg);border-radius:8px;padding:6px 10px;margin-top:8px;color:var(--ink)}
+  .tag{font-size:12px;border-radius:999px;padding:3px 10px;white-space:nowrap;font-weight:600}
+  .t-已預約{background:var(--soft);color:var(--accent)}
+  .t-已完成{background:var(--okSoft);color:var(--ok)}
+  .t-未到{background:var(--warnSoft);color:var(--warn)}
+  .card.dim{opacity:.6}
+  .actions{display:flex;gap:8px;margin-top:12px}
+  .btn{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font-size:14px;color:var(--ink)}
+  .btn.ok{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:600}
+  .btn.warn{color:var(--warn);border-color:#fde68a}
+  .btn.danger{color:var(--danger);border-color:#fecaca}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;padding:13px;font-size:16px}
+  .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:15px}
+  /* 開關 */
+  .switch-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .switch{position:relative;width:52px;height:30px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:#d6d3d1;border-radius:999px;transition:.2s}
+  .slider:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch input:checked + .slider{background:var(--ok)}
+  .switch input:checked + .slider:before{transform:translateX(22px)}
+  /* 表單 */
+  .seg{display:flex;background:var(--bg);border-radius:10px;padding:3px;margin-bottom:12px}
+  .seg button{flex:1;border:0;background:none;border-radius:8px;padding:9px 0;font-size:14px;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:10px}
+  input,select{display:block;width:100%;margin-top:4px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit;color:var(--ink);background:#fff;min-height:44px}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .check{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);margin-bottom:12px}
+  .check input{width:20px;height:20px;min-height:0;margin:0}
+  .two{display:flex;gap:10px}
+  .two label{flex:1}
+  .cl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .cl:first-child{border-top:0}
+  .cl b{font-size:15px}
+  .cl small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+  .del{border:1.5px solid #fecaca;background:#fff;color:var(--danger);border-radius:8px;padding:6px 12px;font-size:13px;flex:0 0 auto}
+  /* 登入 */
+  .login{max-width:360px;margin:60px auto 0;padding:0 16px}
+  .login .card{padding:24px 20px}
+  .login h1{font-size:20px;margin:0 0 4px;text-align:center}
+  .login p{text-align:center;color:var(--muted);font-size:13px;margin:0 0 20px}
+  .lock{width:56px;height:56px;border-radius:50%;background:var(--soft);color:var(--accent);font-size:26px;line-height:56px;text-align:center;margin:0 auto 14px}
+  /* 其他 */
+  .loading{position:fixed;inset:0;background:rgba(245,245,244,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:20;font-size:14px;color:var(--muted)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#1c1917;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:85%;text-align:center}
+  .toast.show{opacity:1}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- 登入 -->
+<div id="loginView" class="login hidden">
+  <div class="card">
+    <div class="lock">🔒</div>
+    <h1>預約後台</h1>
+    <p>韋德機車精品・店家專用</p>
+    <label>密碼<input id="pw" type="password" autocomplete="current-password" enterkeyhint="go"></label>
+    <button id="loginBtn" class="btn primary" style="width:100%">登入</button>
+  </div>
+</div>
+
+<!-- 後台 -->
+<div id="appView" class="hidden">
+  <header class="top">
+    <div>
+      <div class="brand">預約後台</div>
+      <div class="sub" id="updated">韋德機車精品</div>
+    </div>
+    <div class="topbtns">
+      <button class="ghost" id="refreshBtn">↻ 重新整理</button>
+      <button class="ghost" id="logoutBtn">登出</button>
+    </div>
+  </header>
+  <nav class="tabs">
+    <button class="tab on" id="tabList">預約清單</button>
+    <button class="tab" id="tabClose">關閉時間</button>
+  </nav>
+
+  <main>
+    <!-- 預約清單 -->
+    <section id="viewList">
+      <div id="pausedBanner" class="banner hidden">⏸ 線上預約目前已暫停，客人看不到可預約時段</div>
+      <div id="dates" class="dates"></div>
+      <div class="summary">
+        <div class="sbox"><b id="cntTimed">0</b><span>時段預約</span></div>
+        <div class="sbox"><b id="cntDrop">0</b><span>留車</span></div>
+        <div class="sbox"><b id="cntDone">0</b><span>已完成</span></div>
+      </div>
+      <div id="list"></div>
+    </section>
+
+    <!-- 關閉時間 -->
+    <section id="viewClose" class="hidden">
+      <div class="card">
+        <div class="switch-row">
+          <div>
+            <h2 style="margin:0">開放線上預約</h2>
+            <p class="hint" id="openHint"></p>
+          </div>
+          <label class="switch" style="margin:0"><input type="checkbox" id="openSwitch"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>新增關閉時間</h2>
+        <div class="seg" id="kindSeg">
+          <button data-k="date" class="on">指定日期</button>
+          <button data-k="week">每週</button>
+          <button data-k="daily">每天</button>
+        </div>
+        <label id="dateWrap">日期<input id="cDate" type="date"></label>
+        <label id="wdWrap" class="hidden">星期
+          <select id="cWd">
+            <option value="1">週一</option><option value="2">週二</option><option value="3">週三</option>
+            <option value="4">週四</option><option value="5">週五</option><option value="6">週六</option><option value="0">週日</option>
+          </select>
+        </label>
+        <div class="check" id="fullWrap"><input type="checkbox" id="cFull"><span>整天關閉</span></div>
+        <div class="two" id="timeWrap">
+          <label>開始<input id="cFrom" type="time" step="1800" value="18:00"></label>
+          <label>結束<input id="cTo" type="time" step="1800" value="19:00"></label>
+        </div>
+        <label>備註（選填）<input id="cNote" maxlength="50" placeholder="例：外出送件、吃飯"></label>
+        <button id="addClose" class="btn primary" style="width:100%">新增關閉</button>
+      </div>
+
+      <div class="card">
+        <h2>目前的關閉時間</h2>
+        <div id="closedList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="loading" class="loading hidden"><div class="spin"></div><div id="loadingText">載入中…</div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
+const WD = ['日','一','二','三','四','五','六'];
+const $ = id => document.getElementById(id);
+let token = '', data = null, selDate = '', kind = 'date';
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function loading(on, text){ $('loading').classList.toggle('hidden', !on); if (text) $('loadingText').textContent = text; }
+let tt; function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600); }
+function wdOf(d){ const [y,m,dd] = d.split('-').map(Number); return new Date(Date.UTC(y,m-1,dd)).getUTCDay(); }
+function md(d){ const [, m, dd] = d.split('-').map(Number); return `${m}/${dd}`; }
+function addDays(d, n){ const [y,m,dd] = d.split('-').map(Number); return new Date(Date.UTC(y,m-1,dd+n)).toISOString().slice(0,10); }
+function getTok(){ try { return localStorage.getItem('wade_admin_token') || ''; } catch(e){ return ''; } }
+function setTok(t){ try { t ? localStorage.setItem('wade_admin_token', t) : localStorage.removeItem('wade_admin_token'); } catch(e){} }
+
+async function api(type, payload = {}){
+  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ type, token, ...payload }) });
+  const j = await res.json();
+  if (!j.ok){
+    if (j.error === 'LOGIN_REQUIRED'){ showLogin('登入已過期，請重新登入'); throw new Error('LOGIN_REQUIRED'); }
+    throw new Error(j.error || '發生錯誤');
+  }
+  return j;
+}
+
+/* ---------- 登入 ---------- */
+function showLogin(msg){
+  token = ''; setTok('');
+  $('appView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  if (msg) toast(msg);
+  setTimeout(() => $('pw').focus(), 100);
+}
+async function doLogin(){
+  const pw = $('pw').value;
+  if (!pw) return toast('請輸入密碼');
+  loading(true, '登入中…');
+  try {
+    const r = await api('booking_admin_login', { password: pw });
+    token = r.token; setTok(token); $('pw').value = '';
+    $('loginView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+    await load();
+  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
+  finally { loading(false); }
+}
+$('loginBtn').onclick = doLogin;
+$('pw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+$('logoutBtn').onclick = async () => {
+  if (!confirm('確定登出？')) return;
+  try { await api('booking_admin_logout'); } catch(e){}
+  showLogin();
+};
+
+/* ---------- 讀資料 ---------- */
+async function load(silent){
+  if (!silent) loading(true, '讀取中…');
+  try {
+    data = await api('booking_admin_list');
+    if (!selDate) selDate = data.today;
+    const now = new Date();
+    $('updated').textContent = `更新於 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    renderAll();
+  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
+  finally { loading(false); }
+}
+$('refreshBtn').onclick = () => load();
+
+function renderAll(){
+  $('pausedBanner').classList.toggle('hidden', data.open);
+  renderDates(); renderList(); renderOpen(); renderClosed();
+}
+
+/* ---------- 預約清單 ---------- */
+function renderDates(){
+  const counts = {};
+  data.list.forEach(b => { if (b.status === '已預約') counts[b.date] = (counts[b.date] || 0) + 1; });
+  const days = new Set([data.today, addDays(data.today, 1), ...data.list.map(b => b.date)]);
+  const arr = [...days].sort();
+  $('dates').innerHTML = arr.map(d => {
+    const label = d === data.today ? '今天' : d === addDays(data.today, 1) ? '明天' : '週' + WD[wdOf(d)];
+    const n = counts[d] || 0;
+    return `<button class="date${d === selDate ? ' on' : ''}" data-d="${d}"><span>${label}</span><b>${md(d)}</b>${n ? `<i class="badge">${n}</i>` : ''}</button>`;
+  }).join('');
+  $('dates').querySelectorAll('.date').forEach(b => b.onclick = () => { selDate = b.dataset.d; renderDates(); renderList(); });
+}
+
+function renderList(){
+  const items = data.list.filter(b => b.date === selDate);
+  $('cntTimed').textContent = items.filter(b => b.kind !== '留車' && b.status === '已預約').length;
+  $('cntDrop').textContent  = items.filter(b => b.kind === '留車' && b.status === '已預約').length;
+  $('cntDone').textContent  = items.filter(b => b.status === '已完成').length;
+
+  if (!items.length){ $('list').innerHTML = `<div class="empty">${md(selDate)}（${WD[wdOf(selDate)]}）沒有預約</div>`; return; }
+  $('list').innerHTML = items.map((b, i) => {
+    const active = b.status === '已預約';
+    const btns = active
+      ? `<button class="btn ok" data-i="${i}" data-s="已完成">✓ 完成</button>
+         <button class="btn warn" data-i="${i}" data-s="未到">未到</button>
+         <button class="btn danger" data-i="${i}" data-s="已取消">取消</button>`
+      : `<button class="btn" data-i="${i}" data-s="已預約">↺ 改回已預約</button>`;
+    return `
+      <div class="card${active ? '' : ' dim'}">
+        <div class="bk-row">
+          <span class="time${b.kind === '留車' ? ' drop' : ''}">${b.kind === '留車' ? '🛵 留車' : esc(b.time)}</span>
+          <span class="tag t-${esc(b.status)}">${esc(b.status)}</span>
+        </div>
+        <div class="svc">${esc(b.service)}</div>
+        <div class="who">${esc(b.name)}・<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>${b.car ? '・' + esc(b.car) : ''}</div>
+        ${b.note ? `<div class="note">📝 ${esc(b.note)}</div>` : ''}
+        <div class="actions">${btns}</div>
+      </div>`;
+  }).join('');
+  $('list').querySelectorAll('.btn').forEach(btn => btn.onclick = () => setStatus(items[btn.dataset.i], btn.dataset.s));
+}
+
+async function setStatus(b, status){
+  if (status === '已取消' && !confirm(`確定取消這筆預約？\n${b.service}｜${b.name}\n\n行事曆的行程也會一起刪除，客人不會收到通知，請記得聯絡客人。`)) return;
+  loading(true, '更新中…');
+  try {
+    await api('booking_admin_status', { id: b.id, status });
+    toast(status === '已預約' ? '已改回' : `已標記為「${status}」`);
+    await load(true);
+  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
+  finally { loading(false); }
+}
+
+/* ---------- 開放 / 暫停 ---------- */
+function renderOpen(){
+  $('openSwitch').checked = data.open;
+  $('openHint').textContent = data.open ? '目前開放中，客人可以線上預約' : '目前已暫停，客人看不到可預約時段';
+}
+$('openSwitch').onchange = async e => {
+  const open = e.target.checked;
+  if (!open && !confirm('確定暫停所有線上預約？\n已經預約的客人不受影響。')){ e.target.checked = true; return; }
+  loading(true, open ? '開放中…' : '暫停中…');
+  try {
+    await api('booking_admin_toggle', { open });
+    data.open = open; renderAll();
+    toast(open ? '已開放預約' : '已暫停預約');
+  } catch (err){ e.target.checked = !open; if (err.message !== 'LOGIN_REQUIRED') toast(err.message); }
+  finally { loading(false); }
+};
+
+/* ---------- 關閉時間 ---------- */
+function closedLabel(c){
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(c.key) ? `${md(c.key)}（${WD[wdOf(c.key)]}）` : c.key;
+  return { title: d, time: c.from && c.to ? `${c.from}–${c.to}` : '整天' };
+}
+function renderClosed(){
+  if (!data.closed.length){ $('closedList').innerHTML = '<p class="hint">目前沒有設定關閉時間</p>'; return; }
+  $('closedList').innerHTML = data.closed.map((c, i) => {
+    const l = closedLabel(c);
+    return `<div class="cl"><div><b>${esc(l.title)}　${esc(l.time)}</b>${c.note ? `<small>${esc(c.note)}</small>` : ''}</div>
+            <button class="del" data-i="${i}">刪除</button></div>`;
+  }).join('');
+  $('closedList').querySelectorAll('.del').forEach(b => b.onclick = () => removeClosed(data.closed[b.dataset.i]));
+}
+
+$('kindSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  kind = b.dataset.k;
+  $('kindSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  $('dateWrap').classList.toggle('hidden', kind !== 'date');
+  $('wdWrap').classList.toggle('hidden', kind !== 'week');
+});
+$('cFull').onchange = () => $('timeWrap').classList.toggle('hidden', $('cFull').checked);
+
+$('addClose').onclick = async () => {
+  const full = $('cFull').checked;
+  const payload = { kind, date: $('cDate').value, wd: $('cWd').value, fullDay: full,
+                    from: $('cFrom').value, to: $('cTo').value, note: $('cNote').value };
+  if (kind === 'date' && !payload.date) return toast('請選擇日期');
+  if (!full && (!payload.from || !payload.to)) return toast('請填開始和結束時間');
+  if (!full && payload.to <= payload.from) return toast('結束時間要晚於開始時間');
+  loading(true, '新增中…');
+  try {
+    const r = await api('booking_admin_close', payload);
+    data.closed = r.closed; renderClosed();
+    $('cNote').value = '';
+    toast('已新增關閉時間');
+  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
+  finally { loading(false); }
+};
+
+async function removeClosed(c){
+  const l = closedLabel(c);
+  if (!confirm(`刪除這個關閉時間？\n${l.title} ${l.time}`)) return;
+  loading(true, '刪除中…');
+  try {
+    const r = await api('booking_admin_unclose', { row: c.row, key: c.key });
+    data.closed = r.closed; renderClosed();
+    toast('已刪除');
+  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); await load(true); }
+  finally { loading(false); }
+}
+
+/* ---------- 分頁 ---------- */
+function showTab(t){
+  $('tabList').classList.toggle('on', t === 'list');
+  $('tabClose').classList.toggle('on', t === 'close');
+  $('viewList').classList.toggle('hidden', t !== 'list');
+  $('viewClose').classList.toggle('hidden', t !== 'close');
+  window.scrollTo(0, 0);
+}
+$('tabList').onclick = () => showTab('list');
+$('tabClose').onclick = () => showTab('close');
+
+/* ---------- 啟動 ---------- */
+(function init(){
+  const t = new Date();
+  $('cDate').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  token = getTok();
+  if (!token) return showLogin();
+  $('appView').classList.remove('hidden');
+  load();
+})();
+
+// 回到畫面時自動更新
+document.addEventListener('visibilitychange', () => { if (!document.hidden && token && data) load(true); });
+</script>
+</body>
+</html>
