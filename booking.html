@@ -300,6 +300,7 @@ $('submit').onclick = async () => {
     $('doneTitle').textContent = title;
     $('doneSummary').textContent = summary(r.booking);
     show('done');
+    loading(false);
     await sendChat(`【${title}】\n${summary(r.booking)}`, r.booking.id, title);
   } catch (e){
     toast(e.message);
