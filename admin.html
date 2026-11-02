@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>韋德後台工具</title>
+<style>
+  :root {
+    --bg: #0d0d10; --card: #1b1b20; --card-hi: #25252c; --line: #2e2e36;
+    --text: #f4f4f6; --sub: #9a9aa6; --accent: #ffaa00; --purple: #a95cff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
+  }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  header .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 14px var(--purple); }
+  header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+  header small { color: var(--sub); font-size: 13px; margin-left: auto; }
+  h2 { font-size: 14px; color: var(--accent); margin: 22px 4px 10px; letter-spacing: 2px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  a.tool {
+    display: flex; flex-direction: column; gap: 6px; min-height: 92px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px; color: var(--text); text-decoration: none; position: relative;
+  }
+  a.tool:active { background: var(--card-hi); transform: scale(.98); }
+  a.tool .icon { font-size: 24px; line-height: 1; }
+  a.tool .name { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  a.tool .note { font-size: 12px; color: var(--sub); }
+  a.tool.wide { grid-column: span 2; flex-direction: row; align-items: center; min-height: 64px; }
+  a.tool.wide .text { display: flex; flex-direction: column; gap: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <h1>後台工具</h1>
+  <small>韋德機車精品</small>
+</header>
+
+<main id="app"></main>
+
+<script>
+/* ===============================================
+   要新增／修改連結，只改這裡就好
+   { icon: '圖示', name: '名稱', note: '小字說明', url: '網址', wide: true(可省略，整行寬) }
+   =============================================== */
+const SECTIONS = [
+  {
+    title: '常用工具',
+    items: [
+      { icon: '⏰', name: '打卡系統', url: 'https://liff.line.me/2010744078-0Da20QZ1' },
+      { icon: '🧾', name: '機車估價單', note: '產生器', url: 'https://domino0124-dotcom.github.io/maintenance-report/機車估價單產生器.html' },
+      { icon: '📦', name: '訂購訂單', note: '產生器', url: 'https://domino0124-dotcom.github.io/maintenance-report/訂購訂單產生器.html' },
+      { icon: '🔧', name: '大保養回報', note: '老闆用', url: 'https://domino0124-dotcom.github.io/maintenance-report/' },
+      { icon: '📝', name: '大保養預約單', note: '客人填', url: 'https://domino0124-dotcom.github.io/maintenance-report/大保養確認單.html', wide: true },
+    ],
+  },
+  {
+    title: '線上預約',
+    items: [
+      { icon: '📅', name: '預約後台', note: '查看・管理預約', url: 'https://domino0124-dotcom.github.io/maintenance-report/booking-admin.html' },
+      { icon: '🙋', name: '客人預約頁', note: '測試用', url: 'https://liff.line.me/2010744078-CKxuCGOl' },
+    ],
+  },
+  {
+    title: 'LINE 官方帳號',
+    items: [
+      { icon: '💬', name: '聊天回覆', note: 'chat.line.biz', url: 'https://chat.line.biz/' },
+      { icon: '⚙️', name: '官方帳號後台', note: 'manager.line.biz', url: 'https://manager.line.biz/' },
+    ],
+  },
+];
+
+const app = document.getElementById('app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+app.innerHTML = SECTIONS.map(sec => `
+  <h2>${esc(sec.title)}</h2>
+  <div class="grid">
+    ${sec.items.map(it => `
+      <a class="tool${it.wide ? ' wide' : ''}" href="${esc(it.url)}">
+        <span class="icon">${esc(it.icon)}</span>
+        ${it.wide
+          ? `<span class="text"><span class="name">${esc(it.name)}</span>${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}</span>`
+          : `<span class="name">${esc(it.name)}</span>${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}`}
+      </a>`).join('')}
+  </div>`).join('');
+</script>
+</body>
+</html>
