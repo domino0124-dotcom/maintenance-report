@@ -310,6 +310,15 @@ $('submit').onclick = async () => {
   }
 };
 
+// 開啟時先確認「傳送訊息」權限，沒有就跳出 LINE 的授權畫面
+async function ensureChatPermission(){
+  try {
+    if (!liff.isInClient()) return;
+    const p = await liff.permission.query('chat_message.write');
+    if (p && p.state === 'prompt') await liff.permission.requestAll();
+  } catch (e){ /* 不支援時略過，送出時會再提示 */ }
+}
+
 async function sendChat(text){
   // 傳不出去也不影響預約，但會顯示原因方便排查
   try {
@@ -431,6 +440,7 @@ $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else
     if (!liff.isLoggedIn()){ liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
     if (!idToken) throw new Error('LIFF 尚未開啟 openid 權限');
+    await ensureChatPermission();
     loadSaved();
     cfg = await api('booking_config');
     renderServices(); renderDates(); updateSubmit();
