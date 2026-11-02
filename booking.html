@@ -22,6 +22,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font-size:15px;color:var(--ink)}
   .chip.on{border-color:var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
+  .chip.sm{padding:6px 12px;font-size:14px;color:var(--muted)}
   .dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
   .date{flex:0 0 auto;min-width:62px;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 6px;text-align:center;color:var(--ink)}
   .date span{display:block;font-size:12px;color:var(--muted)}
@@ -80,8 +81,12 @@
     </div>
 
     <div class="card">
-      <h2>1. 選擇項目</h2>
+      <h2>1. 預約方式</h2>
       <div id="services" class="chips"></div>
+      <div id="serviceBox" class="hidden" style="margin-top:14px">
+        <label>要做的項目<input id="fService" maxlength="50" placeholder="例：換機油、前輪換胎"></label>
+        <div id="quick" class="chips"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -143,14 +148,15 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbC
 const WD = ['日','一','二','三','四','五','六'];
 const $ = id => document.getElementById(id);
 let cfg = null, idToken = '', editing = null, slotCache = {};
-let st = { service: '', date: '', time: '' };
+let st = { mode: '', service: '', date: '', time: '' };
 
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function loading(on, text){ $('loading').classList.toggle('hidden', !on); if (text) $('loadingText').textContent = text; }
 let toastTimer;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800); }
 function fmtDate(d){ const [y,m,dd] = d.split('-').map(Number); return `${m}/${dd}（${WD[new Date(Date.UTC(y,m-1,dd)).getUTCDay()]}）`; }
-function isDrop(s){ return !!cfg && cfg.dropoff.includes(s); }
+function isDrop(){ return st.mode === 'dropoff'; }
+function serviceText(){ return $('fService').value.trim(); }
 function whenText(b){ return b.kind === '留車' ? '留車（營業時間內送車）' : b.time; }
 function summary(b){
   return `項目：${b.service}\n日期：${fmtDate(b.date)}\n時段：${whenText(b)}\n姓名：${b.name}\n電話：${b.phone}`
@@ -172,13 +178,26 @@ function show(view){
   window.scrollTo(0, 0);
 }
 
-/* ---------- 項目 ---------- */
+/* ---------- 預約方式與項目 ---------- */
 function renderServices(){
-  const items = [...cfg.timed.map(s => ({ s, label: s })), ...cfg.dropoff.map(s => ({ s, label: s + '（留車）' }))];
-  $('services').innerHTML = items.map(x =>
-    `<button class="chip${st.service === x.s ? ' on' : ''}" data-s="${esc(x.s)}">${esc(x.label)}</button>`).join('');
+  const items = [{ m: 'timed', s: '', label: '預約時段' },
+                 ...cfg.dropoff.map(s => ({ m: 'dropoff', s, label: s + '（留車）' }))];
+  const isOn = x => x.m === st.mode && (x.m === 'timed' || x.s === st.service);
+  $('services').innerHTML = items.map((x, i) =>
+    `<button class="chip${isOn(x) ? ' on' : ''}" data-i="${i}">${esc(x.label)}</button>`).join('');
   $('services').querySelectorAll('.chip').forEach(b => b.onclick = () => {
-    st.service = b.dataset.s; renderServices(); refreshTime();
+    const x = items[b.dataset.i];
+    st.mode = x.m;
+    st.service = x.m === 'dropoff' ? x.s : '';
+    renderServices(); refreshTime();
+  });
+
+  $('serviceBox').classList.toggle('hidden', st.mode !== 'timed');
+  $('quick').innerHTML = cfg.timed.map(s => `<button class="chip sm" data-q="${esc(s)}">＋${esc(s)}</button>`).join('');
+  $('quick').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const v = serviceText(), q = b.dataset.q;
+    if (!v.split(/[,，、\s]+/).includes(q)) $('fService').value = v ? v + '、' + q : q;
+    updateSubmit();
   });
 }
 
@@ -235,7 +254,7 @@ function renderSlots(slots){
 }
 
 function updateSubmit(){
-  $('submit').disabled = !(st.service && st.date && (isDrop(st.service) || st.time));
+  $('submit').disabled = !(st.mode && st.date && (isDrop() || (st.time && serviceText())));
   $('submit').textContent = editing ? '確認改期' : '送出預約';
 }
 
@@ -249,8 +268,10 @@ $('submit').onclick = async () => {
   };
   if (!f.name) return toast('請填寫姓名');
   if (!/^0\d{8,9}$/.test(f.phone)) return toast('請填寫正確的電話');
+  if (!isDrop() && !serviceText()) return toast('請填寫要做的項目');
 
-  const payload = { ...f, service: st.service, date: st.date, time: isDrop(st.service) ? '' : st.time };
+  const payload = { ...f, mode: st.mode, service: isDrop() ? st.service : serviceText(),
+                    date: st.date, time: isDrop() ? '' : st.time };
   const isEdit = !!editing;
   loading(true, isEdit ? '改期中…' : '送出中…');
   try {
@@ -322,7 +343,10 @@ async function cancelBooking(b){
 function startEdit(b){
   editing = b;
   slotCache = {};
-  st = { service: b.service, date: cfg.dates.some(d => d.date === b.date) ? b.date : '', time: b.time || '' };
+  const drop = b.kind === '留車';
+  st = { mode: drop ? 'dropoff' : 'timed', service: drop ? b.service : '',
+         date: cfg.dates.some(d => d.date === b.date) ? b.date : '', time: b.time || '' };
+  $('fService').value = drop ? '' : b.service;
   $('fName').value = b.name; $('fPhone').value = b.phone; $('fCar').value = b.car || ''; $('fNote').value = b.note || '';
   $('editLabel').textContent = `${b.service} ${fmtDate(b.date)} ${b.kind === '留車' ? '留車' : b.time}`;
   $('editBar').classList.remove('hidden');
@@ -331,9 +355,10 @@ function startEdit(b){
 
 function resetForm(){
   editing = null; slotCache = {};
-  st = { service: '', date: '', time: '' };
+  st = { mode: '', service: '', date: '', time: '' };
   $('editBar').classList.add('hidden');
   $('fNote').value = '';
+  $('fService').value = '';
   loadSaved(true);
   renderServices(); renderDates();
   $('slotCard').classList.remove('hidden'); $('dropCard').classList.add('hidden');
@@ -356,6 +381,7 @@ function loadSaved(force){
 $('tabNew').onclick = () => show('new');
 $('tabMine').onclick = () => { show('mine'); loadMine(); };
 $('editCancel').onclick = () => resetForm();
+$('fService').oninput = updateSubmit;
 $('doneMine').onclick = () => { show('mine'); loadMine(); };
 $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else show('new'); };
 
