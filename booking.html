@@ -296,11 +296,11 @@ $('submit').onclick = async () => {
       : await api('booking_create', payload);
     saveLocal(f);
     const title = isEdit ? '改期完成' : '預約成功';
-    await sendChat(`【${title}】\n${summary(r.booking)}`);
     resetForm();
     $('doneTitle').textContent = title;
     $('doneSummary').textContent = summary(r.booking);
     show('done');
+    await sendChat(`【${title}】\n${summary(r.booking)}`);
   } catch (e){
     toast(e.message);
     slotCache = {};
@@ -311,11 +311,23 @@ $('submit').onclick = async () => {
 };
 
 async function sendChat(text){
+  // 傳不出去也不影響預約，但會顯示原因方便排查
   try {
-    if (liff.isInClient() && liff.getContext() && liff.getContext().type !== 'none'){
-      await liff.sendMessages([{ type: 'text', text }]);
+    if (!liff.isInClient()){ toast('不是在 LINE 裡開啟，聊天室不會顯示訊息'); return; }
+    const ctx = liff.getContext();
+    if (!ctx || ctx.type === 'none' || ctx.type === 'external'){
+      toast('請從官方帳號聊天室的選單開啟，聊天室才會顯示訊息'); return;
     }
-  } catch (e){ /* 傳不出去也不影響預約 */ }
+    try {
+      const p = await liff.permission.query('chat_message.write');
+      if (p && p.state !== 'granted'){
+        toast('尚未允許「傳送訊息」權限，請重新授權'); return;
+      }
+    } catch (e){ /* 舊版 LINE 不支援查詢，直接嘗試傳送 */ }
+    await liff.sendMessages([{ type: 'text', text }]);
+  } catch (e){
+    toast('聊天室訊息傳送失敗：' + (e && (e.message || e.code) || e));
+  }
 }
 
 /* ---------- 我的預約 ---------- */
