@@ -33,6 +33,10 @@
   .slot{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 0;font-size:15px;color:var(--ink)}
   .slot.on{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:600}
   .slot:disabled{color:#d6d3d1;background:#fafaf9;text-decoration:line-through}
+  .slot small{display:block;font-size:11px;font-weight:500;color:var(--accent);margin-top:2px}
+  .slot.busy{background:#fffaf5}
+  .slot.on small{color:#fff}
+  .legend{display:inline-block;font-size:11px;color:var(--accent);background:#fffaf5;border:1px solid #fed7aa;border-radius:6px;padding:1px 6px;margin-left:2px}
   .hint{font-size:13px;color:var(--muted);margin:8px 0 0;line-height:1.6}
   label{display:block;font-size:13px;color:var(--muted);margin-bottom:10px}
   input,textarea{display:block;width:100%;box-sizing:border-box;margin-top:4px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit;color:var(--ink);background:#fff;resize:none}
@@ -251,9 +255,14 @@ function renderSlots(slots){
     updateSubmit(); return;
   }
   if (st.time && !slots.some(s => s.time === st.time && s.available)) st.time = '';
-  $('slots').innerHTML = slots.map(s =>
-    `<button class="slot${st.time === s.time ? ' on' : ''}" data-t="${s.time}" ${s.available ? '' : 'disabled'}>${s.time}</button>`).join('');
-  $('slotHint').textContent = `每格 ${cfg.slotMin} 分鐘，請在預約時間到店`;
+  $('slots').innerHTML = slots.map(s => {
+    const busy = s.available && s.count > 0;
+    const cls = 'slot' + (st.time === s.time ? ' on' : '') + (busy ? ' busy' : '');
+    return `<button class="${cls}" data-t="${s.time}" ${s.available ? '' : 'disabled'}>${s.time}${busy ? `<small>已有 ${s.count} 位</small>` : ''}</button>`;
+  }).join('');
+  const anyBusy = slots.some(s => s.available && s.count > 0);
+  $('slotHint').innerHTML = `每格 ${cfg.slotMin} 分鐘，請在預約時間到店`
+    + (anyBusy ? `<br><span class="legend">已有 N 位</span> 表示這個時段已有人預約，仍可選擇，但可能需要稍候` : '');
   $('slots').querySelectorAll('.slot').forEach(b => b.onclick = () => { st.time = b.dataset.t; renderSlots(slots); });
   updateSubmit();
 }
