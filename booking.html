@@ -87,9 +87,7 @@
     <div class="card">
       <h2>1. 選擇項目 <span style="font-weight:400;font-size:12px;color:var(--muted)">可複選</span></h2>
       <div id="services" class="chips"></div>
-      <div id="otherBox" class="hidden" style="margin-top:14px">
-        <label>要檢查的問題<input id="fOther" maxlength="60" placeholder="例：煞車異音、怠速不穩"></label>
-      </div>
+      <div id="descBox" class="hidden" style="margin-top:14px"></div>
     </div>
 
     <div class="card">
@@ -151,7 +149,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbC
 const WD = ['日','一','二','三','四','五','六'];
 const $ = id => document.getElementById(id);
 let cfg = null, idToken = '', editing = null, slotCache = {};
-let st = { mode: '', service: '', picks: [], date: '', time: '' };
+let st = { mode: '', service: '', picks: [], desc: {}, date: '', time: '' };
 
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function loading(on, text){ $('loading').classList.toggle('hidden', !on); if (text) $('loadingText').textContent = text; }
@@ -159,11 +157,31 @@ let toastTimer;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800); }
 function fmtDate(d){ const [y,m,dd] = d.split('-').map(Number); return `${m}/${dd}（${WD[new Date(Date.UTC(y,m-1,dd)).getUTCDay()]}）`; }
 function isDrop(){ return st.mode === 'dropoff'; }
-function isOther(s){ return s.includes('其他'); }
-function needOther(){ return st.mode === 'timed' && st.picks.some(isOther); }
+// 需要客人自己填寫說明的項目（例：商品安裝、其他問題檢查）
+function needsDesc(s){
+  if (cfg && Array.isArray(cfg.descItems) && cfg.descItems.length) return cfg.descItems.includes(s);
+  return s.includes('其他') || s.includes('安裝');
+}
+function descLabel(s){
+  if (s.includes('安裝')) return { label: `${s}：要安裝什麼`, ph: '例：手機架、行車記錄器、USB 充電座' };
+  if (s.includes('其他')) return { label: `${s}：要檢查的問題`, ph: '例：煞車異音、怠速不穩' };
+  return { label: `${s}：請簡單說明`, ph: '請簡單說明' };
+}
+function descOf(p){ return String(st.desc[p] || '').trim(); }
+function missingDesc(){ return st.mode === 'timed' ? st.picks.find(p => needsDesc(p) && !descOf(p)) : undefined; }
 function serviceText(){
-  const o = $('fOther').value.trim();
-  return st.picks.map(p => isOther(p) && o ? `${p}（${o}）` : p).join('、');
+  return st.picks.map(p => needsDesc(p) && descOf(p) ? `${p}（${descOf(p)}）` : p).join('、');
+}
+function renderDesc(){
+  const items = st.mode === 'timed' ? st.picks.filter(needsDesc) : [];
+  $('descBox').classList.toggle('hidden', !items.length);
+  $('descBox').innerHTML = items.map((p, i) => {
+    const d = descLabel(p);
+    return `<label>${esc(d.label)}<input data-p="${i}" maxlength="60" placeholder="${esc(d.ph)}" value="${esc(st.desc[p] || '')}"></label>`;
+  }).join('');
+  $('descBox').querySelectorAll('input').forEach(inp => inp.oninput = () => {
+    st.desc[items[inp.dataset.p]] = inp.value; updateSubmit();
+  });
 }
 function whenText(b){ return b.kind === '留車' ? '留車（營業時間內送車）' : b.time; }
 function summary(b){
@@ -189,9 +207,9 @@ function show(view){
 /* ---------- 項目（時段項目可複選，留車項目單選） ---------- */
 function renderServices(){
   const items = [
-    ...cfg.timed.filter(s => !isOther(s)).map(s => ({ m: 'timed', s, label: s })),
+    ...cfg.timed.filter(s => !needsDesc(s)).map(s => ({ m: 'timed', s, label: s })),
     ...cfg.dropoff.map(s => ({ m: 'dropoff', s, label: s + '（留車）' })),
-    ...cfg.timed.filter(isOther).map(s => ({ m: 'timed', s, label: s }))
+    ...cfg.timed.filter(needsDesc).map(s => ({ m: 'timed', s, label: s }))
   ];
   const isOn = x => x.m === st.mode && (x.m === 'timed' ? st.picks.includes(x.s) : x.s === st.service);
   $('services').innerHTML = items.map((x, i) =>
@@ -207,7 +225,7 @@ function renderServices(){
     }
     renderServices(); refreshTime();
   });
-  $('otherBox').classList.toggle('hidden', !needOther());
+  renderDesc();
 }
 
 /* ---------- 日期 ---------- */
@@ -268,8 +286,8 @@ function renderSlots(slots){
 }
 
 function updateSubmit(){
-  const otherOk = !needOther() || $('fOther').value.trim();
-  $('submit').disabled = !(st.mode && st.date && (isDrop() || (st.time && st.picks.length && otherOk)));
+  const descOk = !missingDesc();
+  $('submit').disabled = !(st.mode && st.date && (isDrop() || (st.time && st.picks.length && descOk)));
   $('submit').textContent = editing ? '確認改期' : '送出預約';
 }
 
@@ -284,7 +302,8 @@ $('submit').onclick = async () => {
   if (!f.name) return toast('請填寫姓名');
   if (!/^0\d{8,9}$/.test(f.phone)) return toast('請填寫正確的電話');
   if (!isDrop() && !st.picks.length) return toast('請選擇項目');
-  if (needOther() && !$('fOther').value.trim()) return toast('請簡單描述要檢查的問題');
+  const miss = missingDesc();
+  if (miss) return toast(`請填寫「${descLabel(miss).label}」`);
 
   const payload = { ...f, mode: st.mode, service: isDrop() ? st.service : serviceText(),
                     date: st.date, time: isDrop() ? '' : st.time };
@@ -376,20 +395,32 @@ function startEdit(b){
   editing = b;
   slotCache = {};
   const drop = b.kind === '留車';
-  const picks = [];
-  let other = '';
+  const picks = [], desc = {};
   if (!drop){
-    const otherItem = cfg.timed.find(isOther);
-    String(b.service || '').split('、').forEach(part => {
+    // 把「換機油、商品安裝（手機架）」拆回各項目和說明
+    const otherItem = cfg.timed.find(s => s.includes('其他')) || cfg.timed.find(needsDesc);
+    const parts = [];
+    let buf = '', depth = 0;
+    for (const ch of String(b.service || '')){
+      if (ch === '（') depth++;
+      if (ch === '）') depth = Math.max(0, depth - 1);
+      if (ch === '、' && depth === 0){ parts.push(buf); buf = ''; } else buf += ch;
+    }
+    if (buf) parts.push(buf);
+    parts.forEach(part => {
       const m = part.match(/^(.+?)（(.*)）$/);
       const base = m ? m[1] : part;
-      if (cfg.timed.includes(base)){ if (!picks.includes(base)) picks.push(base); if (m) other = m[2]; }
-      else if (part.trim() && otherItem){ if (!picks.includes(otherItem)) picks.push(otherItem); other = other ? other + '、' + part : part; }
+      if (cfg.timed.includes(base)){
+        if (!picks.includes(base)) picks.push(base);
+        if (m) desc[base] = m[2];
+      } else if (part.trim() && otherItem){
+        if (!picks.includes(otherItem)) picks.push(otherItem);
+        desc[otherItem] = desc[otherItem] ? desc[otherItem] + '、' + part : part;
+      }
     });
   }
-  st = { mode: drop ? 'dropoff' : (picks.length ? 'timed' : ''), service: drop ? b.service : '', picks,
+  st = { mode: drop ? 'dropoff' : (picks.length ? 'timed' : ''), service: drop ? b.service : '', picks, desc,
          date: cfg.dates.some(d => d.date === b.date) ? b.date : '', time: b.time || '' };
-  $('fOther').value = other;
   $('fName').value = b.name; $('fPhone').value = b.phone; $('fCar').value = b.car || ''; $('fNote').value = b.note || '';
   $('editLabel').textContent = `${b.service} ${fmtDate(b.date)} ${b.kind === '留車' ? '留車' : b.time}`;
   $('editBar').classList.remove('hidden');
@@ -398,10 +429,9 @@ function startEdit(b){
 
 function resetForm(){
   editing = null; slotCache = {};
-  st = { mode: '', service: '', picks: [], date: '', time: '' };
+  st = { mode: '', service: '', picks: [], desc: {}, date: '', time: '' };
   $('editBar').classList.add('hidden');
   $('fNote').value = '';
-  $('fOther').value = '';
   loadSaved(true);
   renderServices(); renderDates();
   $('slotCard').classList.remove('hidden'); $('dropCard').classList.add('hidden');
@@ -424,7 +454,6 @@ function loadSaved(force){
 $('tabNew').onclick = () => show('new');
 $('tabMine').onclick = () => { show('mine'); loadMine(); };
 $('editCancel').onclick = () => resetForm();
-$('fOther').oninput = updateSubmit;
 $('doneMine').onclick = () => { show('mine'); loadMine(); };
 $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else show('new'); };
 
