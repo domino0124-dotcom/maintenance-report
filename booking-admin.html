@@ -93,6 +93,7 @@
   .toast.show{opacity:1}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}
   .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:14px;color:var(--muted)}
+  .chip.on{border-color:var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
   textarea{display:block;width:100%;margin-top:4px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit;color:var(--ink);background:#fff;resize:none}
   textarea:focus{outline:none;border-color:var(--accent)}
   .newbtn{width:100%;margin-bottom:10px}
@@ -178,7 +179,12 @@
       <div class="card">
         <h2>新增行程</h2>
         <p class="hint" style="margin:-4px 0 12px">存到你的私人行事曆，早上 8 點會一起推播。</p>
-        <label>內容<input id="sTitle" maxlength="100" placeholder="例：剪頭髮、送貨、拜拜"></label>
+        <div class="chips" id="sQuick" style="margin:0 0 12px"></div>
+        <div class="two hidden" id="sPayWrap">
+          <label><span id="sPlaceLabel">哪裡的</span><input id="sPlace" maxlength="30"></label>
+          <label>金額<input id="sAmount" inputmode="numeric" maxlength="10" placeholder="例：1250"></label>
+        </div>
+        <label>內容<input id="sTitle" maxlength="100" placeholder="點上面常用，或自己輸入"></label>
         <label>日期<input id="sDate" type="date"></label>
         <p class="hint" id="sDayHint" style="margin:-4px 0 10px"></p>
         <div class="check"><input type="checkbox" id="sAllDay"><span>整天</span></div>
@@ -453,6 +459,51 @@ $('tabClose').onclick = () => showTab('close');
 $('tabSched').onclick = () => { showTab('sched'); openSched(); };
 
 /* ---------- 我的行程 ---------- */
+// 常用行程：點一下會出現「哪裡的＋金額」，內容自動組好、自動勾「整天」（要改清單直接改這裡）
+const SCHED_QUICK = [
+  { t: '電費已繳費',   q: '哪裡的',   ph: '例：店面、住家' },
+  { t: '電話費已繳費', q: '哪支電話', ph: '例：店裡手機、市話' },
+  { t: '信用卡已繳費', q: '哪張卡',   ph: '例：國泰、玉山' },
+  { t: '房租',         q: '哪裡的',   ph: '例：店面、住家' },
+  { t: '停車場費',     q: '哪裡的',   ph: '例：XX 停車場' },
+  { t: '轉帳',         q: '轉給誰／用途', ph: '例：廠商、貨款' }
+];
+let quickSel = null;
+$('sQuick').innerHTML = SCHED_QUICK.map((s, i) => `<button class="chip" data-i="${i}">${esc(s.t)}</button>`).join('');
+function composeQuick(){
+  if (!quickSel) return;
+  const place = $('sPlace').value.trim();
+  const amt = $('sAmount').value.replace(/[^\d]/g, '');
+  $('sTitle').value = quickSel.t + (place ? `（${place}）` : '') + (amt ? ` $${Number(amt).toLocaleString('en-US')}` : '');
+}
+function clearQuick(){
+  quickSel = null;
+  $('sPayWrap').classList.add('hidden');
+  $('sPlace').value = ''; $('sAmount').value = '';
+  $('sQuick').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+}
+$('sQuick').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  const item = SCHED_QUICK[b.dataset.i];
+  if (quickSel === item){ clearQuick(); $('sTitle').value = ''; return; } // 再點一次＝取消
+  quickSel = item;
+  $('sQuick').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+  $('sPlaceLabel').textContent = item.q;
+  $('sPlace').placeholder = item.ph;
+  $('sPlace').value = ''; $('sAmount').value = '';
+  $('sPayWrap').classList.remove('hidden');
+  $('sAllDay').checked = true;
+  $('sTimeWrap').classList.add('hidden');
+  composeQuick();
+  $('sPlace').focus();
+});
+$('sPlace').addEventListener('input', composeQuick);
+$('sAmount').addEventListener('input', () => {
+  const d = $('sAmount').value.replace(/[^\d]/g, '');
+  $('sAmount').value = d ? Number(d).toLocaleString('en-US') : '';
+  composeQuick();
+});
+// 自己改「內容」時，就當成一般行程
+$('sTitle').addEventListener('input', clearQuick);
 let schedList = null;
 function openSched(){
   $('sDate').min = todayStr();
@@ -505,6 +556,7 @@ $('sAdd').onclick = async () => {
     const r = await api('booking_admin_sched_add', p);
     schedList = r.list; renderSched();
     $('sTitle').value = ''; $('sNote').value = '';
+    clearQuick();
     toast(`已加入 ${md(p.date)} ${p.allDay ? '整天' : p.start}`);
   } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
   finally { loading(false); }
