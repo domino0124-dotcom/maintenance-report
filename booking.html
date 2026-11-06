@@ -110,7 +110,8 @@
       <h2>4. 聯絡資料</h2>
       <label>姓名<input id="fName" maxlength="20" autocomplete="name"></label>
       <label>電話<input id="fPhone" type="tel" inputmode="numeric" maxlength="12" placeholder="0912345678"></label>
-      <label>車型／車牌<input id="fCar" maxlength="30" placeholder="例：JET SL／ABC-1234"></label>
+      <label>車種<input id="fModel" maxlength="20" placeholder="例：JET SL、勁戰六代"></label>
+      <label>車號<input id="fPlate" maxlength="12" autocapitalize="characters" placeholder="例：ABC-1234"></label>
       <label>備註<textarea id="fNote" rows="2" maxlength="200" placeholder="例：指定機油品牌、輪胎尺寸"></textarea></label>
     </div>
 
@@ -183,10 +184,25 @@ function renderDesc(){
     st.desc[items[inp.dataset.p]] = inp.value; updateSubmit();
   });
 }
+// 車種、車號分開輸入，存檔時合併成「車種／車號」
+function normPlate(s){ return String(s || '').replace(/\s+/g, '').toUpperCase(); }
+function joinCar(model, plate){ return [String(model || '').trim(), normPlate(plate)].filter(Boolean).join('／'); }
+function splitCar(car){
+  const s = String(car || '').trim();
+  if (!s) return { model: '', plate: '' };
+  const i = s.lastIndexOf('／');
+  if (i >= 0) return { model: s.slice(0, i).trim(), plate: s.slice(i + 1).trim() };
+  if (/^[A-Za-z0-9]{2,4}-[A-Za-z0-9]{2,4}$/.test(s)) return { model: '', plate: s.toUpperCase() };
+  return { model: s, plate: '' };
+}
+function carLines(car){
+  const c = splitCar(car);
+  return (c.model ? `\n車種：${c.model}` : '') + (c.plate ? `\n車號：${c.plate}` : '');
+}
 function whenText(b){ return b.kind === '留車' ? '留車（營業時間內送車）' : b.time; }
 function summary(b){
   return `項目：${b.service}\n日期：${fmtDate(b.date)}\n時段：${whenText(b)}\n姓名：${b.name}\n電話：${b.phone}`
-    + (b.car ? `\n車型：${b.car}` : '') + (b.note ? `\n備註：${b.note}` : '');
+    + carLines(b.car) + (b.note ? `\n備註：${b.note}` : '');
 }
 
 async function api(type, data = {}){
@@ -296,7 +312,7 @@ $('submit').onclick = async () => {
   const f = {
     name: $('fName').value.trim(),
     phone: $('fPhone').value.replace(/[\s-]/g, ''),
-    car: $('fCar').value.trim(),
+    car: joinCar($('fModel').value, $('fPlate').value),
     note: $('fNote').value.trim()
   };
   if (!f.name) return toast('請填寫姓名');
@@ -421,7 +437,8 @@ function startEdit(b){
   }
   st = { mode: drop ? 'dropoff' : (picks.length ? 'timed' : ''), service: drop ? b.service : '', picks, desc,
          date: cfg.dates.some(d => d.date === b.date) ? b.date : '', time: b.time || '' };
-  $('fName').value = b.name; $('fPhone').value = b.phone; $('fCar').value = b.car || ''; $('fNote').value = b.note || '';
+  const c = splitCar(b.car);
+  $('fName').value = b.name; $('fPhone').value = b.phone; $('fModel').value = c.model; $('fPlate').value = c.plate; $('fNote').value = b.note || '';
   $('editLabel').textContent = `${b.service} ${fmtDate(b.date)} ${b.kind === '留車' ? '留車' : b.time}`;
   $('editBar').classList.remove('hidden');
   show('new'); renderServices(); renderDates(); refreshTime();
@@ -444,11 +461,14 @@ function saveLocal(f){ try { localStorage.setItem('wade_booking', JSON.stringify
 function loadSaved(force){
   try {
     const d = JSON.parse(localStorage.getItem('wade_booking') || '{}');
+    const c = splitCar(d.car);
     if (force || !$('fName').value)  $('fName').value  = d.name  || '';
     if (force || !$('fPhone').value) $('fPhone').value = d.phone || '';
-    if (force || !$('fCar').value)   $('fCar').value   = d.car   || '';
+    if (force || !$('fModel').value) $('fModel').value = c.model;
+    if (force || !$('fPlate').value) $('fPlate').value = c.plate;
   } catch (e){}
 }
+$('fPlate').addEventListener('blur', () => { $('fPlate').value = normPlate($('fPlate').value); });
 
 /* ---------- 按鈕 ---------- */
 $('tabNew').onclick = () => show('new');

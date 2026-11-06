@@ -163,7 +163,10 @@
         <p class="hint" id="nDayHint" style="margin:-4px 0 10px"></p>
         <label>客人姓名<input id="nName" maxlength="20"></label>
         <label>電話（選填）<input id="nPhone" type="tel" inputmode="numeric" maxlength="12" placeholder="0912345678"></label>
-        <label>車型／車牌（選填）<input id="nCar" maxlength="30"></label>
+        <div class="two">
+          <label>車種（選填）<input id="nModel" maxlength="20" placeholder="JET SL"></label>
+          <label>車號（選填）<input id="nPlate" maxlength="12" autocapitalize="characters" placeholder="ABC-1234"></label>
+        </div>
         <label>備註（選填）<textarea id="nNote" rows="2" maxlength="200"></textarea></label>
         <button id="nSubmit" class="btn primary" style="width:100%">建立預約</button>
       </div>
@@ -465,7 +468,8 @@ $('nSubmit').onclick = async () => {
     kind: nKind, service: nKind === '留車' ? '' : $('nService').value.trim(),
     date: $('nDate').value, time: $('nTime').value,
     name: $('nName').value.trim(), phone: $('nPhone').value.replace(/[\s-]/g, ''),
-    car: $('nCar').value.trim(), note: $('nNote').value.trim()
+    car: [$('nModel').value.trim(), $('nPlate').value.replace(/\s+/g, '').toUpperCase()].filter(Boolean).join('／'),
+    note: $('nNote').value.trim()
   };
   if (nKind === '時段' && !p.service) return toast('請填寫項目');
   if (!p.date) return toast('請選擇日期');
@@ -478,7 +482,7 @@ $('nSubmit').onclick = async () => {
   try {
     await api('booking_admin_create', p);
     toast('已建立預約');
-    ['nService','nName','nPhone','nCar','nNote'].forEach(id => $(id).value = '');
+    ['nService','nName','nPhone','nModel','nPlate','nNote'].forEach(id => $(id).value = '');
     selDate = p.date;
     showTab('list');
     await load(true);
