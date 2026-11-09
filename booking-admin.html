@@ -163,7 +163,7 @@
           <label id="nTimeWrap">時間<input id="nTime" type="time" step="1800" value="14:00"></label>
         </div>
         <p class="hint" id="nDayHint" style="margin:-4px 0 10px"></p>
-        <label>客人姓名<input id="nName" maxlength="20"></label>
+        <label>客人姓名（選填）<input id="nName" maxlength="20"></label>
         <label>電話（選填）<input id="nPhone" type="tel" inputmode="numeric" maxlength="12" placeholder="0912345678"></label>
         <div class="two">
           <label>車種（選填）<input id="nModel" maxlength="20" placeholder="JET SL"></label>
@@ -356,7 +356,7 @@ function renderList(){
           <span class="tag t-${esc(b.status)}">${esc(b.status)}</span>
         </div>
         <div class="svc">${esc(b.service)}</div>
-        <div class="who">${esc(b.name)}・<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>${b.car ? '・' + esc(b.car) : ''}</div>
+        <div class="who">${[b.name ? esc(b.name) : '', b.phone ? `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>` : '', b.car ? esc(b.car) : ''].filter(Boolean).join('・') || '未留姓名電話'}</div>
         ${b.note ? `<div class="note">📝 ${esc(b.note)}</div>` : ''}
         <div class="actions">${btns}</div>
       </div>`;
@@ -626,10 +626,9 @@ $('nSubmit').onclick = async () => {
   if (nKind === '時段' && !p.service) return toast('請填寫項目');
   if (!p.date) return toast('請選擇日期');
   if (nKind === '時段' && !p.time) return toast('請選擇時間');
-  if (!p.name) return toast('請填寫客人姓名');
   if (p.phone && !/^0\d{8,9}$/.test(p.phone)) return toast('電話格式不正確');
   const when = nKind === '留車' ? '留車' : p.time;
-  if (!confirm(`確認建立預約？\n${nKind === '留車' ? '大保養（留車）' : p.service}\n${md(p.date)}（${WD[wdOf(p.date)]}）${when}\n${p.name} ${p.phone}`)) return;
+  if (!confirm(`確認建立預約？\n${nKind === '留車' ? '大保養（留車）' : p.service}\n${md(p.date)}（${WD[wdOf(p.date)]}）${when}\n${[p.name, p.phone].filter(Boolean).join(' ') || '（未填姓名電話）'}`)) return;
   loading(true, '建立中…');
   try {
     await api('booking_admin_create', p);
