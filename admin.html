@@ -33,6 +33,7 @@
   a.tool .note { font-size: 12px; color: var(--sub); }
   a.tool.wide { grid-column: span 2; flex-direction: row; align-items: center; min-height: 64px; }
   a.tool.wide .text { display: flex; flex-direction: column; gap: 2px; }
+  a.tool.hot { border-color: var(--accent); background: linear-gradient(135deg, #2a2210, var(--card)); }
 
   /* PIN 鎖 */
   #lock { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column;
@@ -71,9 +72,24 @@
 <script>
 /* ===============================================
    要新增／修改連結，只改這裡就好
-   { icon: '圖示', name: '名稱', note: '小字說明', url: '網址', wide: true(可省略，整行寬) }
+   { icon: '圖示', name: '名稱', note: '小字說明', url: '網址',
+     wide: true(可省略，整行寬), hot: true(可省略，金色外框) }
    =============================================== */
 const SECTIONS = [
+  {
+    title: '店務系統',
+    items: [
+      { icon: '⚡', name: '快速補登', note: '維修／銷售補登・第一次要先登入', url: 'http://wadegp.magicyuki.com:8080/M_P_invoice/invoice_fast.html', wide: true, hot: true },
+      { icon: '🖥️', name: '完整系統', note: '店務系統首頁', url: 'http://wadegp.magicyuki.com:8080/', wide: true },
+    ],
+  },
+  {
+    title: '官網商城',
+    items: [
+      { icon: '🛒', name: '商城前台', note: '客人看到的購物車', url: 'https://domino0124-dotcom.github.io/shop/' },
+      { icon: '🗂️', name: '商城後台', note: '訂單・商品管理', url: 'https://domino0124-dotcom.github.io/shop/admin.html' },
+    ],
+  },
   {
     title: '常用工具',
     items: [
@@ -106,7 +122,7 @@ app.innerHTML = SECTIONS.map(sec => `
   <h2>${esc(sec.title)}</h2>
   <div class="grid">
     ${sec.items.map(it => `
-      <a class="tool${it.wide ? ' wide' : ''}" href="${esc(it.url)}">
+      <a class="tool${it.wide ? ' wide' : ''}${it.hot ? ' hot' : ''}" href="${esc(it.url)}">
         <span class="icon">${esc(it.icon)}</span>
         ${it.wide
           ? `<span class="text"><span class="name">${esc(it.name)}</span>${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}</span>`
