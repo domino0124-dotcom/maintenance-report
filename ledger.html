@@ -117,7 +117,7 @@
   .alert b{font-size:18px;color:var(--red)}
 
   /* 下方分頁 */
-  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--dark);display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--dark);display:grid;grid-template-columns:repeat(5,1fr);gap:4px;
     padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
   .tabs button{position:relative;background:none;border:0;color:#9aa1b0;font-size:13px;font-weight:600;padding:9px 0 7px;border-radius:14px;
     display:flex;flex-direction:column;align-items:center;gap:5px;transition:.15s}
@@ -170,6 +170,15 @@
   .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   .tblwrap{overflow-x:auto}
 
+  .links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .lnk{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;text-decoration:none;color:var(--ink);background:#fafbfc}
+  .lnk:active{transform:scale(.98)}
+  .lnk.hot{border-color:var(--brand);background:var(--brand-soft)}
+  .lnk .li{font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px;flex:none}
+  .lnk b{display:block;font-size:15px}
+  .lnk small{display:block;font-size:12px;color:var(--sub);margin-top:1px}
+  .card h2 a.btn{text-decoration:none}
+  .kpi b small{font-size:12px;color:var(--sub)}
   /* ===== 電腦版 ===== */
   @media (min-width: 900px){
     body{padding-bottom:40px}
@@ -204,6 +213,7 @@
   <button data-tab="tx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z"/><path d="M13.5 6.5l4 4"/></svg>記帳</button>
   <button data-tab="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg>帳款</button>
   <button data-tab="shopee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>蝦皮</button>
+  <button data-tab="more"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>更多</button>
 </nav></div>
 <main class="wrap">
   <div class="head">
@@ -749,11 +759,70 @@ async function upload() {
   } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '重新上傳'; }
 }
 
+
+/* ================= 更多：集點＋所有後台工具 ================= */
+const MORE_SECTIONS = [
+  { title: '店務系統', items: [
+    { icon: '⚡', name: '快速補登', note: '維修／銷售補登', url: 'http://wadegp.magicyuki.com:8080/M_P_invoice/invoice_fast.html', hot: true },
+    { icon: '🖥️', name: '完整系統', note: '店務系統首頁', url: 'http://wadegp.magicyuki.com:8080/' } ] },
+  { title: '線上預約', items: [
+    { icon: '📅', name: '預約後台', note: '查看・管理預約', url: 'https://domino0124-dotcom.github.io/maintenance-report/booking-admin.html' },
+    { icon: '🙋', name: '客人預約頁', note: '測試用', url: 'https://liff.line.me/2010744078-CKxuCGOl' } ] },
+  { title: '官網商城', items: [
+    { icon: '🛒', name: '商城前台', note: '客人看到的購物車', url: 'https://domino0124-dotcom.github.io/shop/' },
+    { icon: '🗂️', name: '商城後台', note: '訂單・商品管理', url: 'https://domino0124-dotcom.github.io/shop/admin.html' } ] },
+  { title: '常用工具', items: [
+    { icon: '🧾', name: '機車估價單', note: '產生器', url: 'https://domino0124-dotcom.github.io/maintenance-report/機車估價單產生器.html' },
+    { icon: '📦', name: '訂購訂單', note: '產生器', url: 'https://domino0124-dotcom.github.io/maintenance-report/訂購訂單產生器.html' },
+    { icon: '🔧', name: '大保養回報', note: '老闆用', url: 'https://domino0124-dotcom.github.io/maintenance-report/' },
+    { icon: '📝', name: '大保養預約單', note: '客人填', url: 'https://domino0124-dotcom.github.io/maintenance-report/大保養確認單.html' },
+    { icon: '⏰', name: '打卡系統', note: '目前沒在用', url: 'https://liff.line.me/2010744078-0Da20QZ1' },
+    { icon: '🖨️', name: '集點海報', note: '用電腦列印', url: 'https://domino0124-dotcom.github.io/maintenance-report/poster.html' } ] },
+  { title: 'LINE 官方帳號', items: [
+    { icon: '💬', name: '聊天回覆', note: 'chat.line.biz', url: 'https://chat.line.biz/' },
+    { icon: '⚙️', name: '官方帳號後台', note: 'manager.line.biz', url: 'https://manager.line.biz/' } ] },
+];
+const POINTS_ADMIN = 'https://liff.line.me/2010744078-0uIoie4v';
+
+async function viewMore() {
+  const linkCard = sec => `<div class="card"><h2>${esc(sec.title)}</h2><div class="links">
+    ${sec.items.map(it => `<a class="lnk ${it.hot ? 'hot' : ''}" href="${esc(it.url)}">
+      <span class="li">${it.icon}</span><span><b>${esc(it.name)}</b><small>${esc(it.note || '')}</small></span></a>`).join('')}
+    </div></div>`;
+  $('#view').innerHTML = `
+    <div class="card full" id="ptCard"><h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2>
+      <div class="hint">讀取中…</div></div>
+    ${MORE_SECTIONS.map(linkCard).join('')}`;
+  try {
+    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ pt_action: 'list', idToken }) }).then(r => r.json());
+    if (!res.ok) throw new Error(res.error || '讀取失敗');
+    const mStart = new Date(); mStart.setDate(1); mStart.setHours(0, 0, 0, 0);
+    const monthCnt = res.members.filter(m => m.lastAdd >= mStart.getTime()).length;
+    const full = res.members.filter(m => m.full);
+    const recent = (res.recent || []).slice(0, 5);
+    const who = r => { const m = res.members.find(x => x.code === r.code) || {}; return m.name || m.lineName || r.name || r.code; };
+    $('#ptCard').innerHTML = `
+      <h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2>
+      <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi"><span class="l">會員</span><b>${res.stats.total}<small> 位</small></b></div>
+        <div class="kpi"><span class="l">可兌換</span><b class="${full.length ? 'in' : ''}">${full.length}<small> 位</small></b></div>
+        <div class="kpi"><span class="l">本月有來</span><b>${monthCnt}<small> 位</small></b></div>
+      </div>
+      ${full.length ? `<div class="hint" style="margin:6px 0 2px"><b>可兌換：</b>${full.map(m => esc((m.name || m.lineName) + (m.plate ? ' ' + m.plate.split(',')[0] : ''))).join('、')}</div>` : ''}
+      ${recent.length ? recent.map(r => `<div class="line"><span>${esc(who(r))}${(r.note || '').includes('｜') ? ' <span class="s">' + esc(r.note.split('｜')[1]) + '</span>' : ''}</span>
+        <span class="s">${esc(r.action)} · ${new Date(r.time).getMonth() + 1}/${new Date(r.time).getDate()}</span></div>`).join('') : '<div class="hint">還沒有人集點</div>'}`;
+  } catch (e) {
+    $('#ptCard').innerHTML = `<h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2><div class="hint">${esc(e.message)}</div>`;
+  }
+}
+
 /* ================= 切換 ================= */
 const TITLES = {
   sum:    ['營運總覽', '店面與網拍營收、支出、貨款一頁看。'],
   tx:     ['店面記帳', '照手寫單填每日營收，其他收支另外記。'],
   bill:   ['廠商帳款', '月結帳、現金貨款與付款進度。'],
+  more:   ['更多功能', '集點狀況、店務系統、商城、預約等所有後台工具。'],
   shopee: ['蝦皮銷售', '8 個賣場的營收與趨勢，月底匯入訂單報表。']
 };
 function go(t) {
@@ -762,8 +831,9 @@ function go(t) {
   $('#subtitle').textContent = TITLES[t][1];
   $('#crumb').textContent = TITLES[t][0];
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  $('#view').className = (t === 'sum' || t === 'shopee') ? 'grid' : (t === 'tx' || t === 'bill') ? 'cols' : '';
-  ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee })[t]();
+  $('#view').className = (t === 'sum' || t === 'shopee' || t === 'more') ? 'grid' : (t === 'tx' || t === 'bill') ? 'cols' : '';
+  $('#month').style.visibility = t === 'more' ? 'hidden' : 'visible';
+  ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee, more: viewMore })[t]();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => go(b.dataset.tab));
