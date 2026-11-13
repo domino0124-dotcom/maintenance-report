@@ -144,6 +144,7 @@
   .day.sun input{background:#f8f9fb}
   .day.today span{color:var(--brand);font-weight:800}
   .day.today input{border-color:var(--brand)}
+  .day i.bad{color:var(--red)}
   .day i{font-style:normal;color:var(--ok);font-size:14px;font-weight:800;min-width:20px;white-space:nowrap;text-align:right}
   .day input{text-align:left !important}
   @media (min-width: 900px){ #days{columns:2;column-gap:32px} .day{break-inside:avoid} }
@@ -278,7 +279,9 @@ async function api(action, extra = {}) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ ac_action: action, idToken, ...extra })
   });
-  const j = await res.json();
+  const txt = await res.text();
+  let j;
+  try { j = JSON.parse(txt); } catch (e) { throw new Error('GAS 沒有回應正確資料（可能還沒部署新版本）'); }
   if (!j.ok) throw new Error(j.error || '發生錯誤');
   return j;
 }
@@ -366,6 +369,8 @@ function parseDaily(v) {
   const nums = String(v || '').split(/[^\d]+/).filter(Boolean).map(Number);
   return { total: nums.reduce((a, b) => a + b, 0), detail: nums.length > 1 ? nums.join('+') : '' };
 }
+let pending = 0; // 還在存的筆數
+window.addEventListener('beforeunload', e => { if (pending > 0) { e.preventDefault(); e.returnValue = ''; } });
 async function viewDaily() {
   const m = month(), [y, mo] = m.split('-').map(Number);
   const days = new Date(y, mo, 0).getDate();
@@ -404,20 +409,27 @@ async function viewDaily() {
     const st = document.querySelector(`[data-st="${inp.dataset.date}"]`);
     // 打字時即時顯示加總
     inp.oninput = () => { const p = parseDaily(inp.value); st.textContent = p.detail ? '= ' + p.total.toLocaleString('zh-TW') : ''; st.className = ''; };
+    let sending = null;
     const save = async () => {
       const ds = inp.dataset.date, p = parseDaily(inp.value), old = map[ds];
       if ((old ? old.amount : 0) === p.total && (old ? old.detail : '') === p.detail) return;
-      st.textContent = '…';
+      if (sending === inp.value) return;          // 同一個值正在存，不重複送
+      sending = inp.value; pending++;
+      st.className = ''; st.textContent = '儲存中…';
       try {
         await api('setDaily', { date: ds, amount: p.total, detail: p.detail });
         if (p.total) map[ds] = { amount: p.total, detail: p.detail }; else delete map[ds];
-        inp.value = show(map[ds]);
-        st.textContent = (p.detail ? '= ' + p.total.toLocaleString('zh-TW') + ' ' : '') + '✓';
+        if (document.activeElement !== inp) inp.value = show(map[ds]);
+        st.textContent = (p.detail ? '= ' + p.total.toLocaleString('zh-TW') + ' ' : '') + '✓ 已存';
         $('#dTotal').textContent = money(total());
-      } catch (e) { st.textContent = '!'; toast(e.message); }
+      } catch (e) {
+        st.className = 'bad'; st.textContent = '✗ 沒存到';
+        toast('沒存到：' + e.message);
+      } finally { sending = null; pending--; }
     };
     inp.onchange = save;
-    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); (inputs[i + 1] || inp).focus(); } };
+    inp.onblur = save;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); save(); (inputs[i + 1] || inp).focus(); } };
   });
   const t = document.querySelector('.day.today input');
   if (t && matchMedia('(min-width: 900px)').matches) t.focus();
