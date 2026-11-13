@@ -555,16 +555,21 @@ function parseBulk(text) {
   return { ok, bad };
 }
 function viewBillBulk() {
+  const bulkCash = billForm.type === '現金';
   $('#view').innerHTML = `
     <div class="card">
       ${billModeSwitch()}
       <h2>大量新增廠商帳款</h2>
-      <div class="hint">一行一家：<b>廠商 金額</b>。可以直接從 Excel 選兩欄（廠商、金額）複製貼上。</div>
+      <div class="seg">
+        <button class="${!bulkCash?'on':''}" data-bt="月結">月結</button>
+        <button class="${bulkCash?'on':''}" data-bt="現金">現金（已付）</button>
+      </div>
+      <div class="hint" style="margin-top:8px">一行一家：<b>廠商 金額</b>。可以直接從 Excel 選兩欄（廠商、金額）複製貼上。</div>
       <div class="row2">
-        <div><label>帳月（套用到全部）</label><input id="bMonth" type="month" value="${billForm.month || defaultBillMonth()}"></div>
+        <div><label>${bulkCash ? '月份（現金是幾月付的）' : '帳月（套用到全部）'}</label><input id="bMonth" type="month" value="${bulkCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"></div>
         <div></div>
       </div>
-      ${payChipsHtml()}
+      ${bulkCash ? '' : payChipsHtml()}
       <label>貼上帳款</label>
       <textarea id="bulkText" rows="10" placeholder="OTAR 7138&#10;DDX 10770&#10;EPIC 5020&#10;…">${esc(billForm.bulkText || '')}</textarea>
       <div id="bulkPrev" class="hint" style="margin-top:8px"></div>
@@ -572,7 +577,8 @@ function viewBillBulk() {
     </div>
     <div id="billLists"><div class="center">載入中…</div></div>`;
   bindBillMode(); bindPayChips();
-  $('#bMonth').onchange = e => { billForm.month = e.target.value; };
+  document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
+  $('#bMonth').onchange = e => { if (bulkCash) billForm.cashMonth = e.target.value; else billForm.month = e.target.value; };
   const upd = () => {
     billForm.bulkText = $('#bulkText').value;
     const p = parseBulk(billForm.bulkText), tot = p.ok.reduce((a, b) => a + b.amount, 0);
@@ -586,10 +592,11 @@ function viewBillBulk() {
   $('#bulkText').oninput = upd; upd();
   $('#bulkSave').onclick = async () => {
     const p = parseBulk($('#bulkText').value), mth = $('#bMonth').value;
-    if (!confirm(`新增 ${p.ok.length} 筆 ${mth} 帳${billForm.pay ? '（已付・' + billForm.pay + '）' : '（未付）'}？`)) return;
+    if (!confirm(bulkCash ? `新增 ${p.ok.length} 筆 ${mth} 現金貨款？` : `新增 ${p.ok.length} 筆 ${mth} 帳${billForm.pay ? '（已付・' + billForm.pay + '）' : '（未付）'}？`)) return;
     const btn = $('#bulkSave'); btn.disabled = true; btn.textContent = '新增中…';
     try {
-      const j = await api('addBills', { bills: p.ok.map(b => ({ ...b, month: mth, pay: billForm.pay, payDate: billForm.payDate })) });
+      const j = await api('addBills', { bills: p.ok.map(b => ({ ...b, month: mth, type: bulkCash ? '現金' : '月結',
+        pay: bulkCash ? '' : billForm.pay, payDate: bulkCash ? '' : billForm.payDate })) });
       p.ok.forEach(b => { if (!cfg.vendors.includes(b.vendor)) cfg.vendors.push(b.vendor); });
       toast(`已新增 ${j.count} 筆`); billForm.bulkText = ''; $('#bulkText').value = ''; upd(); loadBills();
     } catch (e) { toast(e.message); btn.disabled = false; upd(); }
@@ -615,7 +622,7 @@ async function viewBill() {
       <input id="vendor" list="vendorList" placeholder="輸入或選擇廠商" autocomplete="off">
       <datalist id="vendorList">${cfg.vendors.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
       <div class="row2">
-        <div><label>帳月</label><input id="bMonth" type="month" value="${billForm.month || defaultBillMonth()}"></div>
+        <div><label>${isCash ? '月份（現金是幾月付的）' : '帳月'}</label><input id="bMonth" type="month" value="${isCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"></div>
         <div><label>金額</label><input id="bAmt" type="number" inputmode="numeric" placeholder="0"></div>
       </div>
       ${isCash ? '' : `
@@ -627,6 +634,7 @@ async function viewBill() {
       <div id="payDateBox" style="${billForm.pay ? '' : 'display:none'}"><label>付款日</label><input id="bPayDate" type="date" value="${billForm.payDate}"></div>`}
       <label>備註（選填）</label><input id="bNote" placeholder="例如 發票號碼">
       <button class="btn main block" id="saveBill">新增</button>
+      ${isCash ? '<div class="hint" style="margin-top:10px">現金貨款：選幾月就算在幾月的淨利（例：10 月付的現金選 10 月）。</div>' : ''}
       <div class="hint" style="margin-top:10px">連續輸入：帳月和付款狀態會保留，只要換廠商和金額，按 Enter 就新增下一筆。</div>
     </div>
     <div id="billLists"><div class="center">載入中…</div></div>
@@ -634,7 +642,7 @@ async function viewBill() {
   bindBillMode();
   document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
   bindPayChips();
-  $('#bMonth').onchange = e => { billForm.month = e.target.value; };
+  $('#bMonth').onchange = e => { if (isCash) billForm.cashMonth = e.target.value; else billForm.month = e.target.value; };
   $('#saveBill').onclick = async () => {
     const btn = $('#saveBill'); btn.disabled = true;
     const vendor = $('#vendor').value.trim();
