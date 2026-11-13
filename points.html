@@ -117,6 +117,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v3</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -209,7 +210,9 @@ function render() {
 let profOpen = null; // 記住「我的資料」有沒有展開
 function editing() {
   const a = document.activeElement;
-  return a && a.tagName === 'INPUT' && $('#app').contains(a);
+  if (a && a.tagName === 'INPUT') return true;
+  const p = document.getElementById('prof');
+  return !!(p && p.open); // 「我的資料」展開時一律不自動更新
 }
 
 async function load(manual, auto) {
@@ -236,6 +239,7 @@ function startPoll() {
   clearInterval(window._poll);
   window._poll = setInterval(() => {
     if (++pollCount > 20 || document.hidden) return clearInterval(window._poll);
+    if (editing()) return;
     load(false, true);
   }, 6000);
 }
