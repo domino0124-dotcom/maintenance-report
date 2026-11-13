@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>店務帳｜韋德機車精品</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f2f3f6; --card:#fff; --ink:#151924; --ink2:#3b4252; --sub:#7a8191; --line:#e7e9ee; --line2:#d9dce3;
+    --brand:#e36d3a; --brand-2:#c95726; --brand-soft:#fdf0e9;
+    --blue:#3b5bdb; --blue-soft:#ebefff; --violet:#7048e8; --violet-soft:#f1edff;
+    --ok:#1f9d55; --ok-soft:#e6f6ec; --red:#d9363e; --red-soft:#fdecec;
+    --dark:#161a24; --dark-2:#232836;
+    --r:20px; --shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro TC","PingFang TC","Noto Sans TC",sans-serif;
+    background:var(--bg);color:var(--ink);padding:0 0 calc(92px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  svg{display:block}
+
+  /* 上方麵包屑 */
+  .topbar{position:sticky;top:0;z-index:6;background:rgba(255,255,255,.92);backdrop-filter:saturate(1.6) blur(12px);
+    -webkit-backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--line)}
+  .topbar .in{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
+  .crumb{font-size:15px;color:var(--sub);letter-spacing:.2px}
+  .crumb b{color:var(--ink2);font-weight:700}
+  .crumb i{font-style:normal;margin:0 10px;color:var(--line2)}
+  .who{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--sub)}
+  .avatar{width:34px;height:34px;border-radius:10px;background:var(--brand-soft);color:var(--brand-2);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 16px 0}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px}
+  .head > div{min-width:0}
+  h1{font-size:28px;font-weight:800;letter-spacing:.5px;line-height:1.2}
+  .subtitle{font-size:14px;color:var(--sub);margin-top:6px}
+  input,select,textarea{width:100%;padding:12px 14px;border:1px solid var(--line2);border-radius:14px;font-size:16px;background:#fff;
+    font-family:inherit;color:var(--ink);transition:border-color .15s, box-shadow .15s;outline:none}
+  input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(227,109,58,.15)}
+  input::placeholder{color:#a3a9b6}
+  #month{width:auto;max-width:170px;font-size:15px;padding:10px 14px;font-weight:600;border-radius:14px;background:#fff}
+  label{display:block;font-size:13px;color:var(--sub);margin:14px 0 6px;font-weight:500}
+
+  .card{background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px;border:1px solid var(--line);box-shadow:var(--shadow)}
+  .card h2{font-size:17px;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card h2 > span{font-size:16px}
+
+  /* 深色主卡 */
+  .hero{position:relative;overflow:hidden;background:var(--dark);color:#fff;border:0;padding:22px}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,transparent 52%,rgba(227,109,58,.10) 52.2%,transparent 58%),
+               linear-gradient(115deg,transparent 64%,rgba(227,109,58,.08) 64.2%,transparent 72%),
+               radial-gradient(120% 140% at 100% 100%,rgba(227,109,58,.22),transparent 55%)}
+  .hero > *{position:relative;z-index:1}
+  .hero .ttl{font-size:26px;font-weight:800;letter-spacing:.5px}
+  .hero .lbl{font-size:13px;color:rgba(255,255,255,.62)}
+  .hero .big{font-size:38px;font-weight:800;margin:4px 0 2px;letter-spacing:.3px}
+  .hero .acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .hero .acts .btn{padding:12px 18px}
+  .btn.dark{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)}
+  .neg{color:#ff9b9b !important}
+
+  /* KPI 方塊 */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);position:relative;min-height:128px}
+  .stat .l{font-size:14px;color:var(--ink2);font-weight:500}
+  .stat .v{font-size:26px;font-weight:800;margin-top:14px;letter-spacing:.2px;line-height:1.1}
+  .stat .v small{font-size:13px;color:var(--sub);font-weight:700;margin-right:4px;letter-spacing:0}
+  .stat .c{font-size:13px;color:var(--sub);margin-top:8px}
+  .stat .ic{position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+  .ic.o{background:var(--brand-soft);color:var(--brand)} .ic.b{background:var(--blue-soft);color:var(--blue)}
+  .ic.v{background:var(--violet-soft);color:var(--violet)} .ic.g{background:var(--ok-soft);color:var(--ok)}
+
+  .line{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;gap:10px}
+  .line:last-child{border-bottom:0}
+  .line .s{color:var(--sub);font-size:13px}
+  .tot{font-weight:800}
+  .seg{display:grid;grid-template-columns:1fr 1fr;background:#eceef2;border-radius:14px;padding:4px;gap:4px}
+  .seg button{border:0;background:transparent;padding:11px;border-radius:11px;font-size:16px;font-weight:700;color:var(--sub);transition:.15s}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.1)}
+  .seg button.on.in{color:var(--ok)} .seg button.on.out{color:var(--red)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:9px 15px;border-radius:999px;border:1px solid var(--line2);background:#fff;font-size:15px;color:var(--ink2);transition:.15s}
+  .chip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-2);font-weight:700}
+  .amt{font-size:30px !important;font-weight:800;text-align:right;padding:14px 16px !important}
+  .btn{border:0;border-radius:14px;padding:13px 18px;font-size:16px;font-weight:700;font-family:inherit;transition:transform .08s, filter .15s;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn:active{transform:scale(.98)}
+  .btn.main{background:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(227,109,58,.28)}
+  .btn.main:hover{filter:brightness(1.05)}
+  .btn.ghost{background:var(--brand-soft);color:var(--brand-2)}
+  .btn.ok{background:var(--ok-soft);color:var(--ok)}
+  .btn.gray{background:#eceef2;color:var(--ink)}
+  .btn.sm{padding:7px 13px;font-size:14px;border-radius:10px}
+  .btn.block{display:flex;width:100%;margin-top:16px}
+  .btn:disabled{opacity:.5}
+  .item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+  .item:last-child{border-bottom:0}
+  .item .t{font-weight:700}
+  .item .s{font-size:13px;color:var(--sub);margin-top:3px}
+  .item .r{text-align:right;white-space:nowrap}
+  .in{color:var(--ok)} .out{color:var(--red)}
+  .tag{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px;margin-left:6px;font-weight:700;vertical-align:1px}
+  .tag.unpaid{background:var(--red-soft);color:var(--red)}
+  .tag.paid{background:var(--ok-soft);color:var(--ok)}
+  .tag.cash{background:#eceef2;color:var(--sub)}
+  .del{background:none;border:0;color:var(--sub);font-size:13px;padding:4px 0 0}
+  .hint{font-size:13px;color:var(--sub);line-height:1.65}
+  .err{background:var(--red-soft);color:#9b1c22;padding:13px 14px;border-radius:14px;font-size:14px;margin-bottom:12px}
+  .center{text-align:center;padding:56px 0;color:var(--sub)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .alert{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #f6c9cb;border-left:4px solid var(--red)}
+  .alert b{font-size:18px;color:var(--red)}
+
+  /* 下方分頁 */
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--dark);display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
+  .tabs button{position:relative;background:none;border:0;color:#9aa1b0;font-size:13px;font-weight:600;padding:9px 0 7px;border-radius:14px;
+    display:flex;flex-direction:column;align-items:center;gap:5px;transition:.15s}
+  .tabs button svg{width:24px;height:24px}
+  .tabs button.on{background:var(--dark-2);color:#fff}
+  .tabs button.on::before{content:"";position:absolute;top:-1px;left:14%;right:14%;height:3px;border-radius:3px;background:var(--brand)}
+  .tabs button.on svg{color:var(--brand)}
+  .toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(8px);background:var(--dark);color:#fff;z-index:20;
+    padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;
+    box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{white-space:nowrap;padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--sub);font-weight:600;font-size:13px}
+  td.n,th.n{text-align:right}
+  tr.tot td{border-bottom:0}
+
+  .day{display:grid;grid-template-columns:96px 1fr 20px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .day:last-child{border-bottom:0}
+  .day span{font-size:15px}
+  .day small{color:var(--sub);font-size:12px}
+  .day input{padding:10px 14px;text-align:right;font-size:17px;font-weight:600;border-radius:12px}
+  .day.sun span{color:var(--red)}
+  .day.sun input{background:#f8f9fb}
+  .day.today span{color:var(--brand);font-weight:800}
+  .day.today input{border-color:var(--brand)}
+  .day i{font-style:normal;color:var(--ok);font-size:14px;font-weight:700}
+  @media (min-width: 900px){ #days{columns:2;column-gap:32px} .day{break-inside:avoid} }
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .kpi{background:#f6f7f9;border-radius:14px;padding:12px 14px}
+  .kpi .l{font-size:12px;color:var(--sub);font-weight:500}
+  .kpi b{display:block;font-size:21px;font-weight:800;margin-top:3px}
+  .kpi b small{font-size:12px;color:var(--sub);margin-right:3px}
+  .kpi .d{font-size:12px;font-weight:700}
+  .bar{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:12px;padding:8px 0;font-size:15px}
+  .bar .track{height:12px;background:#eceef2;border-radius:99px;overflow:hidden}
+  .bar .fill{height:100%;border-radius:99px;background:var(--brand)}
+  .bar .v{text-align:right;min-width:86px;font-weight:700}
+  .bar .v small{display:block;color:var(--sub);font-size:11px;font-weight:500}
+  .trend{display:flex;align-items:flex-end;gap:10px;height:160px;padding-top:10px}
+  .trend .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:5px}
+  .trend .area{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
+  .trend .stack{width:100%;max-width:44px;display:flex;flex-direction:column-reverse;border-radius:8px 8px 3px 3px;overflow:hidden;min-height:2px;background:#eceef2}
+  .trend .stack div{width:100%}
+  .trend .m{font-size:12px;color:var(--sub)}
+  .trend .t{font-size:11px;font-weight:700}
+  .trend .col.cur .m{color:var(--brand);font-weight:800}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:var(--sub)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .tblwrap{overflow-x:auto}
+
+  /* ===== 電腦版 ===== */
+  @media (min-width: 900px){
+    body{padding-bottom:40px}
+    .topbar{position:sticky}
+    .wrap{padding:26px 24px 0}
+    .tabs{position:sticky;top:59px;bottom:auto;background:transparent;display:flex;justify-content:flex-start;gap:6px;padding:0;
+      max-width:1100px;margin:0 auto;padding:0 24px;z-index:4}
+    .tabs button{flex-direction:row;font-size:15px;padding:12px 18px;border-radius:0;color:var(--sub);background:none}
+    .tabs button svg{width:18px;height:18px}
+    .tabs button.on{background:none;color:var(--ink)}
+    .tabs button.on::before{top:auto;bottom:0;left:12px;right:12px}
+    .tabbar{background:#fff;border-bottom:1px solid var(--line)}
+    h1{font-size:32px}
+    .toast{bottom:30px}
+    .stats{grid-template-columns:repeat(4,1fr)}
+    #view.cols{display:grid;grid-template-columns:440px 1fr;gap:18px;align-items:start}
+    #view.cols > .card:first-child{position:sticky;top:130px}
+    #view.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    #view.grid > .card{margin-bottom:0}
+    #view.grid > .hero, #view.grid > .stats, #view.grid > .full{grid-column:1 / -1}
+    #view.grid > .stats{margin-bottom:0}
+  }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="in">
+  <div class="crumb">WADE Moto<i>/</i><b id="crumb">營運總覽</b></div>
+  <div class="who"><span id="todayLbl"></span><div class="avatar">W</div></div>
+</div></header>
+<div class="tabbar"><nav class="tabs">
+  <button data-tab="sum" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>總覽</button>
+  <button data-tab="tx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z"/><path d="M13.5 6.5l4 4"/></svg>記帳</button>
+  <button data-tab="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg>帳款</button>
+  <button data-tab="shopee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>蝦皮</button>
+</nav></div>
+<main class="wrap">
+  <div class="head">
+    <div><h1 id="title">營運總覽</h1><div class="subtitle" id="subtitle"></div></div>
+    <input type="month" id="month">
+  </div>
+  <div id="view"><div class="center">載入中…</div></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== 設定（部署前填好）====== */
+const LIFF_ID = '2010744078-JVmXBk98';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
+// 蝦皮帳號代號（照你的賣場改，可以加減）
+const SHOP_LIST = [
+  ['WD', '韋德機車精品'],
+  ['EQ', 'EQ摩托物流'],
+  ['MK', 'MK_精品'],
+  ['CO', 'COCO機車精品'],
+  ['天使', 'ANGEL MOTO'],
+  ['老鷹', 'EAGLE BOUTIQUE 老鷹機車精品'],
+  ['迷霧', '迷霧的世界'],
+  ['Memorable', 'Memorable店鋪']
+];
+const SHOPS = SHOP_LIST.map(x => x[0]);
+const SHOP_FULL = Object.fromEntries(SHOP_LIST);
+const PAY_METHODS = ['現金', '轉帳', '刷卡', 'LINE Pay'];
+/* ============================== */
+
+const SHOP_COLORS = ['#e4703c', '#2563eb', '#16a34a', '#9333ea', '#db2777', '#0891b2', '#ca8a04', '#64748b'];
+let idToken = '', tab = 'sum', cfg = { incomeCats: [], expenseCats: [], vendors: [], shops: [] };
+const form = { type: '收入', cat: '', method: '現金', mode: 'daily' };
+const billForm = { type: '月結' };
+let parsed = null; // 蝦皮報表解析結果
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const moneyH = n => `<small>NT$</small>${n < 0 ? '−' : ''}${Math.round(Math.abs(n)).toLocaleString('zh-TW')}`;
+const money = n => (n < 0 ? '−' : '') + 'NT$ ' + Math.round(Math.abs(n)).toLocaleString('zh-TW');
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const thisMonth = () => today().slice(0, 7);
+function addMonth(m, k) { const [y, mo] = m.split('-').map(Number); const d = new Date(y, mo - 1 + k, 1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+// 記帳日期：看的是本月就用今天；看的是其他月份就用那個月最後一天（月底補登整月營收用）
+function defaultTxDate() {
+  const m = month();
+  if (m === thisMonth()) return today();
+  const [y, mo] = m.split('-').map(Number);
+  return `${m}-${pad(new Date(y, mo, 0).getDate())}`;
+}
+// 廠商帳月：26 號（含）以後算下個月的帳
+function defaultBillMonth() { const d = new Date(); return d.getDate() >= 26 ? addMonth(thisMonth(), 1) : thisMonth(); }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(window._t); window._t=setTimeout(()=>el.classList.remove('show'),2400); }
+function lsGet(k, d){ try { return localStorage.getItem(k) ?? d; } catch { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
+
+async function api(action, extra = {}) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ ac_action: action, idToken, ...extra })
+  });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || '發生錯誤');
+  return j;
+}
+const month = () => $('#month').value || thisMonth();
+function loading(){ $('#view').innerHTML = '<div class="center">載入中…</div>'; }
+function fail(e){ $('#view').innerHTML = `<div class="err">${esc(e.message)}</div><button class="btn main block" onclick="go(tab)">重試</button>`; }
+
+/* ================= 總覽 ================= */
+async function viewSum() {
+  loading();
+  try {
+    const s = await api('summary', { month: month() });
+    const fee = Number(lsGet('shopeeFee', '0')) || 0;
+    const shopeeNet = s.shopee.total * (1 - fee / 100);
+    const net = s.store.incomeTotal + shopeeNet - s.store.expenseTotal - s.bills.total;
+    const shopRows = shopBars(Object.keys(s.shopee.byShop).map(k => ({ shop: k, amount: s.shopee.byShop[k].amount, orders: s.shopee.byShop[k].orders })));
+    const catRows = (obj) => Object.keys(obj).map(k => `<div class="line"><span>${esc(k)}</span><span>${money(obj[k])}</span></div>`).join('') || '<div class="hint">本月沒有紀錄</div>';
+
+    const m2 = +month().slice(5), pm = +s.bills.prevMonth.slice(5);
+    $('#view').innerHTML = `
+      <div class="card hero">
+        <div class="ttl">${m2} 月淨利（估）</div>
+        <div class="lbl" style="margin-top:4px">韋德機車精品・店面與網拍</div>
+        <div class="big ${net < 0 ? 'neg' : ''}" style="margin-top:14px">${money(net)}</div>
+        <div class="lbl">店面 + 蝦皮 − 支出 − 本月付貨款</div>
+        <div class="acts">
+          <button class="btn dark" id="goDaily">記今日營收</button>
+          <button class="btn main" id="goBill">＋ 新增帳款</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="l">店面營收</span><div class="ic o"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+          <div class="v">${moneyH(s.store.incomeTotal)}</div><div class="c">每日營收與其他收入</div></div>
+        <div class="stat"><span class="l">蝦皮營收</span><div class="ic b"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></div>
+          <div class="v">${moneyH(shopeeNet)}</div><div class="c">${s.shopee.orders} 筆有效訂單${fee ? '・已扣 ' + fee + '%' : ''}</div></div>
+        <div class="stat"><span class="l">店面支出</span><div class="ic v"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></svg></div>
+          <div class="v">${moneyH(s.store.expenseTotal)}</div><div class="c">房租、水電、雜支等</div></div>
+        <div class="stat"><span class="l">本月付貨款</span><div class="ic g"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></div>
+          <div class="v">${moneyH(s.bills.total)}</div><div class="c">${pm} 月帳${s.bills.unpaid ? '・未付 ' + money(s.bills.unpaid) : '・已付清'}</div></div>
+      </div>
+
+      ${s.unpaidAll.count ? `<div class="card alert full"><div style="flex:1"><div style="font-weight:800">未付帳款</div>
+        <div class="hint">共 ${s.unpaidAll.count} 筆還沒付</div></div><b>${money(s.unpaidAll.total)}</b>
+        <button class="btn ghost sm" id="goUnpaid">查看</button></div>` : ''}
+
+      <div class="card"><h2>蝦皮賣場營收 <span>${money(s.shopee.total)}</span></h2>
+        ${shopRows || '<div class="hint">本月還沒匯入蝦皮訂單，到「蝦皮」上傳報表</div>'}
+        <label>蝦皮手續費預估 %（淨利會扣掉，只存在這台手機）</label>
+        <input id="fee" type="number" inputmode="decimal" value="${fee || ''}" placeholder="例如 12">
+      </div>
+
+      <div class="card"><h2>店面收入 <span class="in">${money(s.store.incomeTotal)}</span></h2>${catRows(s.store.income)}</div>
+      <div class="card"><h2>店面支出 <span class="out">${money(s.store.expenseTotal)}</span></h2>${catRows(s.store.expense)}</div>
+      <div class="card"><h2>本月付的貨款 <span>${money(s.bills.total)}</span></h2>
+        <div class="line"><span>已付</span><span class="in">${money(s.bills.paid)}</span></div>
+        <div class="line"><span>未付</span><span class="out">${money(s.bills.unpaid)}</span></div>
+        <div class="hint" style="margin-top:6px">${+s.bills.prevMonth.slice(5)} 月的月結帳在本月付，加上本月現金進貨</div>
+      </div>
+    `;
+    $('#goDaily').onclick = () => { form.mode = 'daily'; go('tx'); };
+    $('#goBill').onclick = () => go('bill');
+    if ($('#goUnpaid')) $('#goUnpaid').onclick = () => go('bill');
+    $('#fee').onchange = e => { lsSet('shopeeFee', e.target.value || '0'); viewSum(); };
+  } catch (e) { fail(e); }
+}
+
+/* ================= 記帳 ================= */
+async function viewTx() {
+  if (form.mode === 'daily') return viewDaily();
+  return viewSingle();
+}
+
+function modeSwitch() {
+  return `<div class="seg" style="margin-bottom:12px">
+    <button class="${form.mode==='daily'?'on':''}" data-mode="daily">每日營收</button>
+    <button class="${form.mode==='single'?'on':''}" data-mode="single">其他收支</button></div>`;
+}
+function bindMode() {
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { form.mode = b.dataset.mode; viewTx(); });
+}
+
+/* 每日營收：照手寫單，一天填一個總額 */
+async function viewDaily() {
+  const m = month(), [y, mo] = m.split('-').map(Number);
+  const days = new Date(y, mo, 0).getDate();
+  const W = '日一二三四五六';
+  $('#view').className = '';
+  $('#view').innerHTML = `${modeSwitch()}
+    <div class="card">
+      <h2>${m} 每日營收 <span class="in" id="dTotal">—</span></h2>
+      <div class="hint" style="margin-bottom:8px">照手寫單填每天的總額，打完按 Enter 跳下一天，會自動存。這裡只算店面，蝦皮另外匯入。</div>
+      <div id="days"><div class="hint">載入中…</div></div>
+    </div>`;
+  bindMode();
+  let map = {};
+  try {
+    const j = await api('listTx', { month: m });
+    j.items.forEach(t => { if (t.type === '收入' && t.note === '每日營收') map[t.date] = t.amount; });
+  } catch (e) { $('#days').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  const total = () => Object.values(map).reduce((a, b) => a + b, 0);
+  $('#dTotal').textContent = money(total());
+  let html = '';
+  for (let d = 1; d <= days; d++) {
+    const ds = `${m}-${pad(d)}`, wd = new Date(y, mo - 1, d).getDay();
+    html += `<div class="day ${wd === 0 ? 'sun' : ''} ${ds === today() ? 'today' : ''}">
+      <span>${mo}/${d}<small>（${W[wd]}）</small></span>
+      <input type="number" inputmode="numeric" data-date="${ds}" value="${map[ds] || ''}" placeholder="${wd === 0 ? '公休' : ''}">
+      <i data-st="${ds}"></i></div>`;
+  }
+  $('#days').innerHTML = html;
+  const inputs = [...document.querySelectorAll('[data-date]')];
+  inputs.forEach((inp, i) => {
+    const save = async () => {
+      const ds = inp.dataset.date, v = Number(inp.value) || 0;
+      if ((map[ds] || 0) === v) return;
+      const st = document.querySelector(`[data-st="${ds}"]`);
+      st.textContent = '…';
+      try {
+        await api('setDaily', { date: ds, amount: v });
+        if (v) map[ds] = v; else delete map[ds];
+        st.textContent = '✓'; $('#dTotal').textContent = money(total());
+      } catch (e) { st.textContent = '!'; toast(e.message); }
+    };
+    inp.onchange = save;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); (inputs[i + 1] || inp).focus(); } };
+  });
+  const t = document.querySelector('.day.today input');
+  if (t && matchMedia('(min-width: 900px)').matches) t.focus();
+}
+
+async function viewSingle() {
+  $('#view').className = matchMedia('(min-width: 900px)').matches ? 'cols' : '';
+  const cats = form.type === '收入' ? cfg.incomeCats : cfg.expenseCats;
+  if (!cats.includes(form.cat)) form.cat = cats[0] || '';
+  $('#view').innerHTML = `
+    <div class="card">
+      ${modeSwitch()}
+      <div class="seg">
+        <button class="${form.type==='收入'?'on in':''}" data-type="收入">收入</button>
+        <button class="${form.type==='支出'?'on out':''}" data-type="支出">支出</button>
+      </div>
+      <label>金額</label>
+      <input id="amt" class="amt" type="number" inputmode="numeric" placeholder="0">
+      <label>類別（不用選，預設「${esc(cats[0] || '')}」）</label>
+      <div class="chips" id="cats">${cats.map(c => `<button class="chip ${c===form.cat?'on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <label>付款方式</label>
+      <div class="chips" id="methods">${PAY_METHODS.map(m => `<button class="chip ${m===form.method?'on':''}" data-m="${esc(m)}">${esc(m)}</button>`).join('')}</div>
+      <div class="row2">
+        <div><label>日期</label><input id="date" type="date" value="${defaultTxDate()}"></div>
+        <div><label>說明（選填）</label><input id="note" placeholder="例如 車牌、品項"></div>
+      </div>
+      <button class="btn main block" id="saveTx">儲存</button>
+      ${form.type === '支出' ? '<div class="hint" style="margin-top:10px">向廠商進貨請記在「帳款」，避免重複計算。</div>' : ''}
+    </div>
+    <div class="card"><h2>${month()} 紀錄</h2><div id="txList"><div class="hint">載入中…</div></div></div>
+  `;
+  bindMode();
+  document.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { form.type = b.dataset.type; viewTx(); });
+  document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { form.cat = b.dataset.cat; document.querySelectorAll('[data-cat]').forEach(x => x.classList.toggle('on', x === b)); });
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { form.method = b.dataset.m; document.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#saveTx').onclick = async () => {
+    const btn = $('#saveTx'); btn.disabled = true; btn.textContent = '儲存中…';
+    try {
+      await api('addTx', { tx: { type: form.type, cat: form.cat, method: form.method, amount: $('#amt').value, date: $('#date').value, note: $('#note').value } });
+      toast(`已記：${form.type} ${money(Number($('#amt').value))}`);
+      $('#amt').value = ''; $('#note').value = '';
+      loadTxList();
+    } catch (e) { toast(e.message); }
+    btn.disabled = false; btn.textContent = '儲存';
+    $('#amt').focus();
+  };
+  // 電腦上：打完金額按 Enter 直接存
+  ['#amt', '#note'].forEach(s => $(s).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#saveTx').click(); } });
+  if (matchMedia('(min-width: 900px)').matches) $('#amt').focus();
+  loadTxList();
+}
+
+async function loadTxList() {
+  try {
+    const j = await api('listTx', { month: month() });
+    let inc = 0, exp = 0;
+    j.items.forEach(t => t.type === '收入' ? inc += t.amount : exp += t.amount);
+    $('#txList').innerHTML = j.items.length ? `
+      <div class="line tot"><span>收入 <span class="in">${money(inc)}</span></span><span>支出 <span class="out">${money(exp)}</span></span></div>
+      ${j.items.map(t => `
+        <div class="item">
+          <div><div class="t">${esc(t.cat)}</div><div class="s">${t.date.slice(5)} · ${esc(t.method)}${t.note ? ' · ' + esc(t.note) : ''}</div></div>
+          <div class="r"><div class="${t.type==='收入'?'in':'out'}">${t.type==='收入'?'+':'−'}${Math.round(t.amount).toLocaleString('zh-TW')}</div>
+          <button class="del" data-del="${esc(t.id)}">刪除</button></div>
+        </div>`).join('')}` : '<div class="hint">本月還沒有紀錄</div>';
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      if (!confirm('確定刪除這筆？')) return;
+      try { await api('delTx', { id: b.dataset.del }); toast('已刪除'); loadTxList(); } catch (e) { toast(e.message); }
+    });
+  } catch (e) { $('#txList').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ================= 帳款 ================= */
+async function viewBill() {
+  $('#view').innerHTML = `
+    <div class="card">
+      <h2>新增廠商帳款</h2>
+      <div class="seg">
+        <button class="${billForm.type==='月結'?'on':''}" data-bt="月結">月結（之後付）</button>
+        <button class="${billForm.type==='現金'?'on':''}" data-bt="現金">現金（當場付）</button>
+      </div>
+      <label>廠商</label>
+      <input id="vendor" list="vendorList" placeholder="輸入或選擇廠商">
+      <datalist id="vendorList">${cfg.vendors.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
+      <div class="row2">
+        <div><label>帳月</label><input id="bMonth" type="month" value="${defaultBillMonth()}"></div>
+        <div><label>金額</label><input id="bAmt" type="number" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <label>備註（選填）</label><input id="bNote" placeholder="例如 發票號碼">
+      <button class="btn main block" id="saveBill">新增</button>
+      <div class="hint" style="margin-top:10px">帳月：上月 26 日～本月 25 日進貨算本月帳，下個月付款。</div>
+    </div>
+    <div id="billLists"><div class="center">載入中…</div></div>
+  `;
+  document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
+  $('#saveBill').onclick = async () => {
+    const btn = $('#saveBill'); btn.disabled = true;
+    const vendor = $('#vendor').value.trim();
+    try {
+      await api('addBill', { bill: { vendor, type: billForm.type, month: $('#bMonth').value, amount: $('#bAmt').value, note: $('#bNote').value } });
+      if (!cfg.vendors.includes(vendor)) cfg.vendors.push(vendor);
+      toast('已新增帳款');
+      $('#vendor').value = ''; $('#bAmt').value = ''; $('#bNote').value = '';
+      loadBills();
+    } catch (e) { toast(e.message); }
+    btn.disabled = false;
+    $('#vendor').focus();
+  };
+  ['#bAmt', '#bNote'].forEach(s => $(s).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#saveBill').click(); } });
+  loadBills();
+}
+
+function billItem(b) {
+  const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
+  return `<div class="item">
+    <div><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
+      <div class="s">${esc(b.month)} 帳${b.method ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div></div>
+    <div class="r"><div class="t">${Math.round(b.amount).toLocaleString('zh-TW')}</div>
+      ${b.status === '已付'
+        ? `<button class="del" data-unpay="${esc(b.id)}">改回未付</button>`
+        : `<button class="btn ok sm" data-pay="${esc(b.id)}">付款</button>`}
+      <button class="del" data-bdel="${esc(b.id)}" style="margin-left:8px">刪除</button></div>
+  </div>`;
+}
+
+async function loadBills() {
+  try {
+    const j = await api('listBills', { month: month() });
+    const sum = arr => arr.reduce((a, b) => a + b.amount, 0);
+    $('#billLists').innerHTML = `
+      <div class="card"><h2>全部未付 <span class="out">${money(sum(j.unpaid))}</span></h2>
+        ${j.unpaid.length ? j.unpaid.map(billItem).join('') : '<div class="hint">沒有未付帳款 👍</div>'}</div>
+      <div class="card"><h2>${month()} 帳 <span>${money(sum(j.ofMonth))}</span></h2>
+        ${j.ofMonth.length ? j.ofMonth.map(billItem).join('') : '<div class="hint">這個月沒有廠商帳</div>'}</div>`;
+    document.querySelectorAll('[data-pay]').forEach(b => b.onclick = async () => {
+      const m = prompt('付款方式？（現金 / 轉帳 / 支票）', '轉帳');
+      if (m === null) return;
+      try { await api('payBill', { id: b.dataset.pay, method: m }); toast('已標記付款'); loadBills(); } catch (e) { toast(e.message); }
+    });
+    document.querySelectorAll('[data-unpay]').forEach(b => b.onclick = async () => {
+      if (!confirm('改回未付？')) return;
+      try { await api('unpayBill', { id: b.dataset.unpay }); loadBills(); } catch (e) { toast(e.message); }
+    });
+    document.querySelectorAll('[data-bdel]').forEach(b => b.onclick = async () => {
+      if (!confirm('確定刪除這筆帳款？')) return;
+      try { await api('delBill', { id: b.dataset.bdel }); toast('已刪除'); loadBills(); } catch (e) { toast(e.message); }
+    });
+  } catch (e) { $('#billLists').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ================= 蝦皮 ================= */
+const COL_GUESS = {
+  id: ['訂單編號'],
+  status: ['訂單狀態'],
+  date: ['訂單成立日期', '訂單成立時間', '訂單建立時間', '訂單日期'],
+  amount: ['訂單總金額', '買家總支付金額', '訂單小計', '商品總價']
+};
+
+function viewShopee() {
+  const shops = [...new Set([...SHOPS, ...cfg.shops])];
+  const lastShop = lsGet('lastShop', shops[0] || '');
+  $('#view').innerHTML = `
+    <div id="dash"><div class="card"><div class="hint">儀表板載入中…</div></div></div>
+    <div class="card">
+      <h2>匯入蝦皮訂單報表</h2>
+      <div class="hint">蝦皮賣家中心 → 我的銷售 → 匯出訂單，下載 Excel 後上傳。每個帳號分開上傳；同一張訂單重複上傳會自動更新，不會重複計算。</div>
+      <label>蝦皮帳號</label>
+      <select id="shop">${shops.map(s => `<option value="${esc(s)}" ${s===lastShop?'selected':''}>${esc(s)}${SHOP_FULL[s] ? '｜' + esc(SHOP_FULL[s]) : ''}</option>`).join('')}<option value="__new">＋ 其他帳號…</option></select>
+      <label>訂單報表（.xlsx 或 .csv）</label>
+      <input id="file" type="file" accept=".xlsx,.xls,.csv">
+      <div id="parseBox"></div>
+    </div>
+  `;
+  $('#shop').onchange = e => {
+    if (e.target.value === '__new') {
+      const n = (prompt('輸入帳號代號') || '').trim();
+      if (n) { cfg.shops.push(n); lsSet('lastShop', n); }
+      viewShopee();
+    } else lsSet('lastShop', e.target.value);
+  };
+  $('#file').onchange = e => { const f = e.target.files[0]; if (f) readFile(f); };
+  loadDash();
+}
+
+/* ---------- 蝦皮儀表板 ---------- */
+function shopColor(shop) {
+  const all = [...new Set([...SHOPS, ...cfg.shops])];
+  const i = all.indexOf(shop);
+  return SHOP_COLORS[(i < 0 ? all.length : i) % SHOP_COLORS.length];
+}
+
+function shopBars(list) {
+  if (!list.length) return '';
+  const max = Math.max(...list.map(x => x.amount), 1);
+  return list.sort((a, b) => b.amount - a.amount).map(x => `
+    <div class="bar"><span>${esc(x.shop)}</span>
+      <div class="track"><div class="fill" style="width:${(x.amount / max * 100).toFixed(1)}%;background:${shopColor(x.shop)}"></div></div>
+      <span class="v">${Math.round(x.amount).toLocaleString('zh-TW')}<small>${x.orders} 筆</small></span></div>`).join('');
+}
+
+async function loadDash() {
+  try {
+    const t = await api('shopeeTrend', { month: month(), count: 6 });
+    const n = t.months.length, cur = n - 1;
+    const shops = Object.keys(t.byShop);
+    const ordersAt = i => shops.reduce((a, k) => a + t.orders[k][i], 0);
+    const amt = t.totals[cur], prev = t.totals[cur - 1] || 0, ord = ordersAt(cur);
+    const diff = prev ? (amt - prev) / prev * 100 : null;
+    const max = Math.max(...t.totals, 1);
+    const short = v => v >= 10000 ? (v / 10000).toFixed(1) + '萬' : Math.round(v).toLocaleString('zh-TW');
+
+    $('#dash').innerHTML = `
+      <div class="card">
+        <h2>蝦皮營運儀表板 <span class="hint">${month()}</span></h2>
+        <div class="kpis">
+          <div class="kpi"><span class="l">本月營收</span><b>${moneyH(amt)}</b>
+            ${diff === null ? '' : `<span class="d ${diff >= 0 ? 'in' : 'out'}">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(1)}% 比上月</span>`}</div>
+          <div class="kpi"><span class="l">有效訂單</span><b>${ord.toLocaleString('zh-TW')} 筆</b></div>
+          <div class="kpi"><span class="l">平均客單價</span><b>${ord ? moneyH(amt / ord) : '—'}</b></div>
+          <div class="kpi"><span class="l">近 6 個月合計</span><b>${moneyH(t.totals.reduce((a, b) => a + b, 0))}</b></div>
+        </div>
+        ${shopBars(shops.map(k => ({ shop: k, amount: t.byShop[k][cur], orders: t.orders[k][cur] })).filter(x => x.orders)) || '<div class="hint" style="margin-top:8px">這個月還沒有匯入訂單</div>'}
+      </div>
+      <div class="card">
+        <h2>近 6 個月</h2>
+        <div class="trend">${t.months.map((m, i) => `
+          <div class="col ${i === cur ? 'cur' : ''}">
+            <span class="t">${t.totals[i] ? short(t.totals[i]) : ''}</span>
+            <div class="area"><div class="stack" style="height:${(t.totals[i] / max * 100).toFixed(1)}%">
+              ${shops.map(k => t.byShop[k][i] ? `<div style="height:${(t.byShop[k][i] / (t.totals[i] || 1) * 100).toFixed(1)}%;background:${shopColor(k)}"></div>` : '').join('')}
+            </div></div>
+            <span class="m">${+m.slice(5)}月</span>
+          </div>`).join('')}</div>
+        ${shops.length ? `<div class="legend">${shops.map(k => `<span><i style="background:${shopColor(k)}"></i>${esc(k)}</span>`).join('')}</div>
+        <div class="tblwrap" style="margin-top:12px"><table>
+          <tr><th>帳號</th>${t.months.map(m => `<th class="n">${+m.slice(5)}月</th>`).join('')}</tr>
+          ${shops.map(k => `<tr><td>${esc(k)}</td>${t.byShop[k].map(v => `<td class="n">${v ? short(v) : '–'}</td>`).join('')}</tr>`).join('')}
+          <tr class="tot"><td>合計</td>${t.totals.map(v => `<td class="n">${v ? short(v) : '–'}</td>`).join('')}</tr>
+        </table></div>` : ''}
+      </div>`;
+  } catch (e) { $('#dash').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+function readFile(file) {
+  $('#parseBox').innerHTML = '<div class="hint" style="margin-top:12px">讀取中…</div>';
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const wb = XLSX.read(new Uint8Array(r.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+      const hi = rows.findIndex(row => row.some(c => String(c).includes('訂單編號')));
+      if (hi < 0) throw new Error('找不到「訂單編號」欄位，請確認是蝦皮匯出的訂單報表');
+      const header = rows[hi].map(h => String(h).trim());
+      const guess = {};
+      Object.keys(COL_GUESS).forEach(k => {
+        let idx = -1;
+        for (const name of COL_GUESS[k]) { idx = header.findIndex(h => h === name); if (idx >= 0) break; }
+        if (idx < 0) for (const name of COL_GUESS[k]) { idx = header.findIndex(h => h.includes(name)); if (idx >= 0) break; }
+        guess[k] = idx;
+      });
+      parsed = { header, data: rows.slice(hi + 1), col: guess, multi: 'first' };
+      renderParse();
+    } catch (e) { $('#parseBox').innerHTML = `<div class="err" style="margin-top:12px">${esc(e.message)}</div>`; }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function parseDate(s) {
+  s = String(s || '').trim().replace(/\//g, '-');
+  if (!s) return NaN;
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if (!m) return new Date(s).getTime();
+  return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 12), +(m[5] || 0)).getTime();
+}
+const num = s => { const n = Number(String(s ?? '').replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; };
+
+function buildOrders() {
+  const { data, col, multi } = parsed;
+  const map = new Map();
+  data.forEach(r => {
+    const id = String(r[col.id] || '').trim();
+    if (!id) return;
+    const amt = num(r[col.amount]);
+    if (!map.has(id)) map.set(id, { id, status: String(r[col.status] ?? ''), date: parseDate(r[col.date]), amount: amt });
+    else if (multi === 'sum') map.get(id).amount += amt;
+  });
+  return [...map.values()].filter(o => !isNaN(o.date));
+}
+
+function renderParse() {
+  const sel = (k, label) => `<div><label>${label}</label><select data-col="${k}">
+    <option value="-1">（未選）</option>${parsed.header.map((h, i) => `<option value="${i}" ${i===parsed.col[k]?'selected':''}>${esc(h)}</option>`).join('')}</select></div>`;
+  const ready = ['id','status','date','amount'].every(k => parsed.col[k] >= 0);
+  let preview = '';
+  if (ready) {
+    const orders = buildOrders();
+    const bad = /取消|不成立|退貨|退款/;
+    const byMonth = {};
+    orders.forEach(o => {
+      const d = new Date(o.date), m = `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+      byMonth[m] = byMonth[m] || { n: 0, amt: 0, bad: 0 };
+      if (bad.test(o.status)) byMonth[m].bad++; else { byMonth[m].n++; byMonth[m].amt += o.amount; }
+    });
+    parsed.orders = orders;
+    preview = `
+      <label>預覽（不含取消／退貨）</label>
+      <table><tr><th>月份</th><th class="n">有效訂單</th><th class="n">取消退貨</th><th class="n">金額</th></tr>
+      ${Object.keys(byMonth).sort().map(m => `<tr><td>${m}</td><td class="n">${byMonth[m].n}</td><td class="n">${byMonth[m].bad}</td><td class="n">${Math.round(byMonth[m].amt).toLocaleString('zh-TW')}</td></tr>`).join('')}
+      </table>
+      <button class="btn main block" id="upload">上傳 ${orders.length} 筆訂單到「${esc($('#shop').value)}」</button>`;
+  }
+  $('#parseBox').innerHTML = `
+    <div class="row2">${sel('id','訂單編號')}${sel('status','訂單狀態')}${sel('date','訂單日期')}${sel('amount','金額')}</div>
+    <label>同一張訂單有多行（多件商品）時</label>
+    <select id="multi"><option value="first" ${parsed.multi==='first'?'selected':''}>取第一行（金額是整張訂單）</option>
+      <option value="sum" ${parsed.multi==='sum'?'selected':''}>全部加總（金額是單一商品）</option></select>
+    ${ready ? preview : '<div class="err" style="margin-top:12px">請把四個欄位都選好</div>'}
+  `;
+  document.querySelectorAll('[data-col]').forEach(s => s.onchange = () => { parsed.col[s.dataset.col] = +s.value; renderParse(); });
+  $('#multi').onchange = e => { parsed.multi = e.target.value; renderParse(); };
+  if ($('#upload')) $('#upload').onclick = upload;
+}
+
+async function upload() {
+  const btn = $('#upload'), shop = $('#shop').value, orders = parsed.orders;
+  btn.disabled = true;
+  let added = 0, updated = 0;
+  try {
+    for (let i = 0; i < orders.length; i += 400) {
+      btn.textContent = `上傳中… ${Math.min(i + 400, orders.length)} / ${orders.length}`;
+      const j = await api('importShopee', { shop, rows: orders.slice(i, i + 400) });
+      added += j.added; updated += j.updated;
+    }
+    if (!cfg.shops.includes(shop)) cfg.shops.push(shop);
+    $('#parseBox').innerHTML = `<div class="card" style="background:var(--ok-soft);border-color:#bfe5cb;margin-top:12px">
+      <b>匯入完成</b><div class="hint">新增 ${added} 筆、更新 ${updated} 筆。到「總覽」看各帳號營收。</div></div>`;
+    $('#file').value = '';
+    loadDash();
+  } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '重新上傳'; }
+}
+
+/* ================= 切換 ================= */
+const TITLES = {
+  sum:    ['營運總覽', '店面與網拍營收、支出、貨款一頁看。'],
+  tx:     ['店面記帳', '照手寫單填每日營收，其他收支另外記。'],
+  bill:   ['廠商帳款', '月結帳、現金貨款與付款進度。'],
+  shopee: ['蝦皮銷售', '8 個賣場的營收與趨勢，月底匯入訂單報表。']
+};
+function go(t) {
+  tab = t;
+  $('#title').textContent = TITLES[t][0];
+  $('#subtitle').textContent = TITLES[t][1];
+  $('#crumb').textContent = TITLES[t][0];
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  $('#view').className = (t === 'sum' || t === 'shopee') ? 'grid' : (t === 'tx' || t === 'bill') ? 'cols' : '';
+  ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee })[t]();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => go(b.dataset.tab));
+$('#month').onchange = () => go(tab);
+
+(async () => {
+  $('#month').value = thisMonth();
+  $('#todayLbl').textContent = today().replace(/-/g, '.');
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    idToken = liff.getIDToken();
+    cfg = await api('init');
+    go('sum');
+  } catch (e) {
+    $('#view').innerHTML = `<div class="err">開啟失敗：${esc(e.message)}</div><button class="btn main block" onclick="location.reload()">重新載入</button>`;
+  }
+})();
+</script>
+</body>
+</html>
