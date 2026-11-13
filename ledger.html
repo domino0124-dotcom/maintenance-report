@@ -180,6 +180,8 @@
   .lnk small{display:block;font-size:12px;color:var(--sub);margin-top:1px}
   .card h2 a.btn{text-decoration:none}
   .kpi b small{font-size:12px;color:var(--sub)}
+  .bulklist{display:grid;grid-template-columns:1fr auto;gap:2px 14px;max-height:220px;overflow:auto;padding:8px 12px;background:#f6f7f9;border-radius:12px;font-size:14px;color:var(--ink)}
+  textarea{resize:vertical;font-size:16px;line-height:1.6}
   .batch{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;background:#f6f7f9;border-radius:14px;margin-bottom:6px}
   .batch .chips{gap:6px}
   .batch .chip{padding:7px 12px;font-size:14px}
@@ -514,12 +516,96 @@ async function loadTxList() {
 const PAY_WAYS = ['現金', '支票', '轉帳'];
 let billSel = new Set(), batchWay = '轉帳';
 
+function billModeSwitch() {
+  return `<div class="seg" style="margin-bottom:12px">
+    <button class="${billForm.mode!=='bulk'?'on':''}" data-bmode="one">一筆一筆</button>
+    <button class="${billForm.mode==='bulk'?'on':''}" data-bmode="bulk">大量貼上</button></div>`;
+}
+function bindBillMode() {
+  document.querySelectorAll('[data-bmode]').forEach(b => b.onclick = () => { billForm.mode = b.dataset.bmode; viewBill(); });
+}
+function payChipsHtml() {
+  return `<label>付款狀態（套用到全部）</label>
+      <div class="chips" id="payChips">
+        <button class="chip ${billForm.pay===''?'on':''}" data-pay-opt="">未付</button>
+        ${PAY_WAYS.map(w => `<button class="chip ${billForm.pay===w?'on':''}" data-pay-opt="${w}">已付・${w}</button>`).join('')}
+      </div>
+      <div id="payDateBox" style="${billForm.pay ? '' : 'display:none'}"><label>付款日</label><input id="bPayDate" type="date" value="${billForm.payDate}"></div>`;
+}
+function bindPayChips() {
+  document.querySelectorAll('[data-pay-opt]').forEach(b => b.onclick = () => {
+    billForm.pay = b.dataset.payOpt;
+    document.querySelectorAll('[data-pay-opt]').forEach(x => x.classList.toggle('on', x === b));
+    $('#payDateBox').style.display = billForm.pay ? '' : 'none';
+  });
+  if ($('#bPayDate')) $('#bPayDate').onchange = e => { billForm.payDate = e.target.value; };
+}
+
+/* 大量貼上：一行一家「廠商 金額」，可直接從 Excel 複製兩欄 */
+function parseBulk(text) {
+  const ok = [], bad = [];
+  String(text || '').split(/\r?\n/).forEach((line, i) => {
+    const t = line.trim(); if (!t) return;
+    const m = t.match(/^(.*?)[\s,，\t]+\$?([\d,]+(?:\.\d+)?)\s*$/);
+    if (!m) { bad.push(i + 1); return; }
+    const vendor = m[1].replace(/[\t,，]+$/, '').trim(), amount = Number(m[2].replace(/,/g, ''));
+    if (!vendor || !amount || /^(總金額|總計|合計|小計)$/.test(vendor)) { if (!/^(總金額|總計|合計|小計)$/.test(vendor)) bad.push(i + 1); return; }
+    ok.push({ vendor, amount });
+  });
+  return { ok, bad };
+}
+function viewBillBulk() {
+  $('#view').innerHTML = `
+    <div class="card">
+      ${billModeSwitch()}
+      <h2>大量新增廠商帳款</h2>
+      <div class="hint">一行一家：<b>廠商 金額</b>。可以直接從 Excel 選兩欄（廠商、金額）複製貼上。</div>
+      <div class="row2">
+        <div><label>帳月（套用到全部）</label><input id="bMonth" type="month" value="${billForm.month || defaultBillMonth()}"></div>
+        <div></div>
+      </div>
+      ${payChipsHtml()}
+      <label>貼上帳款</label>
+      <textarea id="bulkText" rows="10" placeholder="OTAR 7138&#10;DDX 10770&#10;EPIC 5020&#10;…">${esc(billForm.bulkText || '')}</textarea>
+      <div id="bulkPrev" class="hint" style="margin-top:8px"></div>
+      <button class="btn main block" id="bulkSave" disabled>全部新增</button>
+    </div>
+    <div id="billLists"><div class="center">載入中…</div></div>`;
+  bindBillMode(); bindPayChips();
+  $('#bMonth').onchange = e => { billForm.month = e.target.value; };
+  const upd = () => {
+    billForm.bulkText = $('#bulkText').value;
+    const p = parseBulk(billForm.bulkText), tot = p.ok.reduce((a, b) => a + b.amount, 0);
+    $('#bulkPrev').innerHTML = p.ok.length
+      ? `<div class="bulklist">${p.ok.map(b => `<span>${esc(b.vendor)}</span><b>${b.amount.toLocaleString('zh-TW')}</b>`).join('')}</div>
+         <div style="margin-top:6px"><b>${p.ok.length} 家・合計 ${money(tot)}</b>${p.bad.length ? `<span class="out">　第 ${p.bad.join('、')} 行看不懂，會跳過</span>` : ''}</div>`
+      : (p.bad.length ? `<span class="out">看不懂格式，請用「廠商 金額」一行一家</span>` : '');
+    $('#bulkSave').disabled = !p.ok.length;
+    $('#bulkSave').textContent = p.ok.length ? `全部新增 ${p.ok.length} 筆（${money(tot)}）` : '全部新增';
+  };
+  $('#bulkText').oninput = upd; upd();
+  $('#bulkSave').onclick = async () => {
+    const p = parseBulk($('#bulkText').value), mth = $('#bMonth').value;
+    if (!confirm(`新增 ${p.ok.length} 筆 ${mth} 帳${billForm.pay ? '（已付・' + billForm.pay + '）' : '（未付）'}？`)) return;
+    const btn = $('#bulkSave'); btn.disabled = true; btn.textContent = '新增中…';
+    try {
+      const j = await api('addBills', { bills: p.ok.map(b => ({ ...b, month: mth, pay: billForm.pay, payDate: billForm.payDate })) });
+      p.ok.forEach(b => { if (!cfg.vendors.includes(b.vendor)) cfg.vendors.push(b.vendor); });
+      toast(`已新增 ${j.count} 筆`); billForm.bulkText = ''; $('#bulkText').value = ''; upd(); loadBills();
+    } catch (e) { toast(e.message); btn.disabled = false; upd(); }
+  };
+  loadBills();
+}
+
 async function viewBill() {
   if (billForm.pay === undefined) billForm.pay = '';
+  if (!billForm.payDate) billForm.payDate = today();
+  if (billForm.mode === 'bulk') return viewBillBulk();
   if (!billForm.payDate) billForm.payDate = today();
   const isCash = billForm.type === '現金';
   $('#view').innerHTML = `
     <div class="card">
+      ${billModeSwitch()}
       <h2>新增廠商帳款</h2>
       <div class="seg">
         <button class="${billForm.type==='月結'?'on':''}" data-bt="月結">月結（之後付）</button>
@@ -545,14 +631,10 @@ async function viewBill() {
     </div>
     <div id="billLists"><div class="center">載入中…</div></div>
   `;
+  bindBillMode();
   document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
-  document.querySelectorAll('[data-pay-opt]').forEach(b => b.onclick = () => {
-    billForm.pay = b.dataset.payOpt;
-    document.querySelectorAll('[data-pay-opt]').forEach(x => x.classList.toggle('on', x === b));
-    $('#payDateBox').style.display = billForm.pay ? '' : 'none';
-  });
+  bindPayChips();
   $('#bMonth').onchange = e => { billForm.month = e.target.value; };
-  if ($('#bPayDate')) $('#bPayDate').onchange = e => { billForm.payDate = e.target.value; };
   $('#saveBill').onclick = async () => {
     const btn = $('#saveBill'); btn.disabled = true;
     const vendor = $('#vendor').value.trim();
