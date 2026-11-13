@@ -177,7 +177,7 @@ function render() {
     </div>
 
     <div class="card">
-      <details ${m.phone || m.plate ? '' : 'open'}>
+      <details id="prof" ${(profOpen ?? !(m.phone || m.plate)) ? 'open' : ''}>
         <summary>我的資料（方便店家查找）</summary>
         <label>姓名</label><input id="fName" value="${esc(m.name)}" placeholder="選填">
         <label>手機</label><input id="fPhone" value="${esc(m.phone)}" inputmode="tel" placeholder="選填">
@@ -196,6 +196,7 @@ function render() {
   new QRCode($('#qr'), { text: 'WADEPT:' + m.code, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
 
   $('#refresh').onclick = () => load(true);
+  $('#prof').ontoggle = () => { profOpen = $('#prof').open; };
   $('#save').onclick = async () => {
     const btn = $('#save'); btn.disabled = true; btn.textContent = '儲存中…';
     try {
@@ -205,9 +206,20 @@ function render() {
   };
 }
 
-async function load(manual) {
+let profOpen = null; // 記住「我的資料」有沒有展開
+function editing() {
+  const a = document.activeElement;
+  return a && a.tagName === 'INPUT' && $('#app').contains(a);
+}
+
+async function load(manual, auto) {
   try {
     const j = await api('me');
+    // 自動更新：點數沒變、或客人正在打字，就不要重畫畫面（不然鍵盤會跳掉）
+    if (auto && state) {
+      const same = j.member.points === state.member.points && j.member.redeemed === state.member.redeemed;
+      if (same || editing()) return; // 打字中先不更新，打完下一輪再更新
+    }
     if (lastPoints !== null && j.member.points > lastPoints) toast('已加 1 點！');
     if (lastPoints !== null && j.member.points < lastPoints && j.member.redeemed > state.member.redeemed) toast('兌換完成！');
     lastPoints = j.member.points;
@@ -224,10 +236,10 @@ function startPoll() {
   clearInterval(window._poll);
   window._poll = setInterval(() => {
     if (++pollCount > 20 || document.hidden) return clearInterval(window._poll);
-    load(false);
+    load(false, true);
   }, 6000);
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && state) { load(false); startPoll(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state) { load(false, true); startPoll(); } });
 
 (async () => {
   try {
