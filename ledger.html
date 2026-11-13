@@ -85,6 +85,7 @@
   .seg button.on.in{color:var(--ok)} .seg button.on.out{color:var(--red)}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{padding:9px 15px;border-radius:999px;border:1px solid var(--line2);background:#fff;font-size:15px;color:var(--ink2);transition:.15s}
+  .chip.add{border-style:dashed;color:var(--sub)}
   .chip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-2);font-weight:700}
   .amt{font-size:30px !important;font-weight:800;text-align:right;padding:14px 16px !important}
   .btn{border:0;border-radius:14px;padding:13px 18px;font-size:16px;font-weight:700;font-family:inherit;transition:transform .08s, filter .15s;
@@ -459,7 +460,9 @@ async function viewSingle() {
       <label>金額</label>
       <input id="amt" class="amt" type="number" inputmode="numeric" placeholder="0">
       <label>類別（不用選，預設「${esc(cats[0] || '')}」）</label>
-      <div class="chips" id="cats">${cats.map(c => `<button class="chip ${c===form.cat?'on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <div class="chips" id="cats">${cats.map(c => `<button class="chip ${c===form.cat?'on':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
+        <button class="chip add" id="catAdd">＋ 自己輸入</button></div>
+      <input id="catCustom" placeholder="輸入類別，例如 保險、稅金、餐費" style="display:none;margin-top:8px" maxlength="20">
       <label>付款方式</label>
       <div class="chips" id="methods">${PAY_METHODS.map(m => `<button class="chip ${m===form.method?'on':''}" data-m="${esc(m)}">${esc(m)}</button>`).join('')}</div>
       <div class="row2">
@@ -473,13 +476,27 @@ async function viewSingle() {
   `;
   bindMode();
   document.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { form.type = b.dataset.type; viewTx(); });
-  document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { form.cat = b.dataset.cat; document.querySelectorAll('[data-cat]').forEach(x => x.classList.toggle('on', x === b)); });
+  document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => {
+    form.cat = b.dataset.cat; form.custom = false;
+    document.querySelectorAll('[data-cat],#catAdd').forEach(x => x.classList.toggle('on', x === b));
+    $('#catCustom').style.display = 'none';
+  });
+  $('#catAdd').onclick = () => {
+    form.custom = true;
+    document.querySelectorAll('[data-cat]').forEach(x => x.classList.remove('on'));
+    $('#catAdd').classList.add('on');
+    $('#catCustom').style.display = ''; $('#catCustom').focus();
+  };
+  $('#catCustom').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#amt').focus(); } };
   document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { form.method = b.dataset.m; document.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b)); });
   $('#saveTx').onclick = async () => {
     const btn = $('#saveTx'); btn.disabled = true; btn.textContent = '儲存中…';
     try {
-      await api('addTx', { tx: { type: form.type, cat: form.cat, method: form.method, amount: $('#amt').value, date: $('#date').value, note: $('#note').value } });
-      toast(`已記：${form.type} ${money(Number($('#amt').value))}`);
+      const cat = form.custom ? ($('#catCustom').value.trim() || form.cat) : form.cat;
+      await api('addTx', { tx: { type: form.type, cat, method: form.method, amount: $('#amt').value, date: $('#date').value, note: $('#note').value } });
+      toast(`已記：${form.type}・${cat} ${money(Number($('#amt').value))}`);
+      const list = form.type === '收入' ? cfg.incomeCats : cfg.expenseCats;
+      if (form.custom && cat && !list.includes(cat)) { list.push(cat); form.cat = cat; form.custom = false; viewTx(); return; }
       $('#amt').value = ''; $('#note').value = '';
       loadTxList();
     } catch (e) { toast(e.message); }
@@ -767,11 +784,11 @@ function viewShopee() {
   $('#view').innerHTML = `
     <div id="dash"><div class="card"><div class="hint">儀表板載入中…</div></div></div>
     <div class="card">
-      <h2>匯入蝦皮訂單報表</h2>
-      <div class="hint">蝦皮賣家中心 → 我的銷售 → 匯出訂單，下載 Excel 後上傳。每個帳號分開上傳；同一張訂單重複上傳會自動更新，不會重複計算。</div>
+      <h2>匯入蝦皮報表</h2>
+      <div class="hint">建議用<b>進帳報表</b>：蝦皮賣家中心 → 財務 → 我的進帳 → 選月份 → 匯出（已扣手續費）。也可以用「我的銷售 → 訂單 → 匯出」。每個帳號分開上傳；重複上傳不會重複計算。</div>
       <label>蝦皮帳號</label>
       <select id="shop">${shops.map(s => `<option value="${esc(s)}" ${s===lastShop?'selected':''}>${esc(s)}${SHOP_FULL[s] ? '｜' + esc(SHOP_FULL[s]) : ''}</option>`).join('')}<option value="__new">＋ 其他帳號…</option></select>
-      <label>訂單報表（.xlsx 或 .csv）</label>
+      <label>進帳報表或訂單報表（.xlsx 或 .csv）</label>
       <input id="file" type="file" accept=".xlsx,.xls,.csv">
       <div id="parseBox"></div>
     </div>
@@ -852,10 +869,20 @@ function readFile(file) {
   r.onload = () => {
     try {
       const wb = XLSX.read(new Uint8Array(r.result), { type: 'array' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
-      const hi = rows.findIndex(row => row.some(c => String(c).includes('訂單編號')));
-      if (hi < 0) throw new Error('找不到「訂單編號」欄位，請確認是蝦皮匯出的訂單報表');
+      // 找有「訂單編號」的分頁（進帳報表第一頁是摘要，資料在 Income 分頁）
+      let rows = null, hi = -1;
+      const names = [...wb.SheetNames].sort((a, b) => (b === 'Income') - (a === 'Income'));
+      for (const n of names) {
+        const rr = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' });
+        const h = rr.findIndex(row => row.some(c => String(c).trim() === '訂單編號'));
+        if (h >= 0) { rows = rr; hi = h; break; }
+      }
+      if (hi < 0) throw new Error('找不到「訂單編號」欄位，請確認是蝦皮的訂單報表或進帳報表');
       const header = rows[hi].map(h => String(h).trim());
+      const income = header.includes('錢包入帳金額');   // 蝦皮進帳（撥款）報表
+      // 賣家帳號（進帳報表上方有），記住對應哪個賣場，下次自動選
+      let acct = '';
+      for (let i = 0; i < hi; i++) { const k = rows[i].findIndex(c => String(c).trim() === '賣家帳號'); if (k >= 0) { acct = String((rows[i + 1] || [])[k] || rows[i][k + 1] || '').trim(); break; } }
       const guess = {};
       Object.keys(COL_GUESS).forEach(k => {
         let idx = -1;
@@ -863,7 +890,17 @@ function readFile(file) {
         if (idx < 0) for (const name of COL_GUESS[k]) { idx = header.findIndex(h => h.includes(name)); if (idx >= 0) break; }
         guess[k] = idx;
       });
-      parsed = { header, data: rows.slice(hi + 1), col: guess, multi: 'first' };
+      if (income) {
+        guess.date = header.indexOf('錢包入帳日期');
+        guess.amount = header.indexOf('錢包入帳金額');
+        guess.status = -1;
+      }
+      parsed = { header, data: rows.slice(hi + 1), col: guess, multi: income ? 'sum' : 'first', income, acct,
+        refundCol: header.indexOf('退款編號') };
+      if (acct) {
+        const mapped = lsGet('acct_' + acct, '');
+        if (mapped && [...$('#shop').options].some(o => o.value === mapped)) { $('#shop').value = mapped; lsSet('lastShop', mapped); }
+      }
       renderParse();
     } catch (e) { $('#parseBox').innerHTML = `<div class="err" style="margin-top:12px">${esc(e.message)}</div>`; }
   };
@@ -883,8 +920,10 @@ function buildOrders() {
   const { data, col, multi } = parsed;
   const map = new Map();
   data.forEach(r => {
-    const id = String(r[col.id] || '').trim();
+    let id = String(r[col.id] || '').trim();
     if (!id) return;
+    // 進帳報表：退款是另一筆入帳，加上退款編號，避免蓋掉原本那個月的訂單
+    if (parsed.refundCol >= 0 && String(r[parsed.refundCol] || '').trim()) id += '#R' + String(r[parsed.refundCol]).trim();
     const amt = num(r[col.amount]);
     if (!map.has(id)) map.set(id, { id, status: col.status >= 0 ? String(r[col.status] ?? '') : '', date: parseDate(r[col.date]), amount: amt });
     else if (multi === 'sum') map.get(id).amount += amt;
@@ -915,6 +954,9 @@ function renderParse() {
       <button class="btn main block" id="upload">上傳 ${orders.length} 筆訂單到「${esc($('#shop').value)}」</button>`;
   }
   $('#parseBox').innerHTML = `
+    ${parsed.income ? `<div class="card" style="background:var(--ok-soft);border-color:#bfe5cb;margin:12px 0 0;padding:12px 14px">
+      <b>偵測到：蝦皮進帳報表</b>${parsed.acct ? `（賣家帳號 ${esc(parsed.acct)}）` : ''}
+      <div class="hint">金額用「錢包入帳金額」（已扣手續費、運費、退款），日期用「錢包入帳日期」。總覽的手續費 % 請填 0。</div></div>` : ''}
     <div class="row2">${sel('id','訂單編號')}${sel('status','訂單狀態（進帳報表沒有就不選）')}${sel('date','訂單日期')}${sel('amount','金額')}</div>
     <label>同一張訂單有多行（多件商品）時</label>
     <select id="multi"><option value="first" ${parsed.multi==='first'?'selected':''}>取第一行（金額是整張訂單）</option>
@@ -934,6 +976,7 @@ async function upload() {
     for (let i = 0; i < orders.length; i += 400) {
       btn.textContent = `上傳中… ${Math.min(i + 400, orders.length)} / ${orders.length}`;
       const j = await api('importShopee', { shop, rows: orders.slice(i, i + 400) });
+      if (parsed.acct) lsSet('acct_' + parsed.acct, shop);
       added += j.added; updated += j.updated;
     }
     if (!cfg.shops.includes(shop)) cfg.shops.push(shop);
