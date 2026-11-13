@@ -6,53 +6,53 @@
 <title>集點海報｜韋德機車精品</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  /* ====== 用電腦打開 → 列印（A4 直式、邊界無）====== */
+  /* ====== 黑白印表機版：白底黑字，省墨又清楚 ====== */
   @page{size:A4;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;background:#ddd;
-    -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .a4{width:210mm;height:297mm;margin:0 auto;background:#161a24;color:#fff;position:relative;overflow:hidden;
-    display:flex;flex-direction:column;align-items:center;padding:22mm 18mm 16mm}
-  .a4::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(115deg,transparent 52%,rgba(227,109,58,.12) 52.2%,transparent 60%),
-               linear-gradient(115deg,transparent 66%,rgba(227,109,58,.09) 66.2%,transparent 75%),
-               radial-gradient(120% 90% at 100% 100%,rgba(227,109,58,.30),transparent 55%)}
-  .a4 > *{position:relative;z-index:1}
-  .brand{font-size:18pt;letter-spacing:4px;color:rgba(255,255,255,.65);font-weight:600}
-  h1{font-size:54pt;font-weight:900;letter-spacing:6px;margin-top:6mm;line-height:1.15;text-align:center}
-  h1 em{font-style:normal;color:#e36d3a}
-  .sub{font-size:20pt;margin-top:5mm;color:rgba(255,255,255,.85);font-weight:600}
-  .stamps{display:grid;grid-template-columns:repeat(10,1fr);gap:3mm;width:100%;margin:11mm 0 9mm}
-  .stamps div{aspect-ratio:1;border-radius:50%;border:2px dashed rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;
-    font-size:12pt;color:rgba(255,255,255,.55);font-weight:700}
-  .stamps div.on{background:#e36d3a;border:2px solid #e36d3a;color:#fff}
-  .stamps div.gift{background:#fff;border-color:#fff;color:#e36d3a;font-size:9pt}
-  .qrbox{background:#fff;border-radius:8mm;padding:9mm;box-shadow:0 10mm 30mm rgba(0,0,0,.35)}
-  #qr img,#qr canvas{display:block;width:78mm !important;height:78mm !important}
-  .steps{display:flex;gap:6mm;margin-top:11mm;width:100%}
-  .step{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:5mm;padding:5mm;text-align:center}
-  .step b{display:inline-flex;width:9mm;height:9mm;border-radius:50%;background:#e36d3a;align-items:center;justify-content:center;font-size:14pt}
-  .step div{font-size:14pt;margin-top:3mm;font-weight:600;line-height:1.4}
-  .foot{margin-top:auto;padding-top:6mm;font-size:11pt;color:rgba(255,255,255,.55);text-align:center;line-height:1.7}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;background:#ddd;color:#000}
+  .a4{width:210mm;height:297mm;margin:0 auto;background:#fff;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;padding:14mm 16mm 15mm}
+  .frame{position:absolute;inset:8mm;border:2.5mm solid #000;border-radius:6mm;pointer-events:none}
+  .brand{font-size:17pt;letter-spacing:4px;font-weight:700;margin-top:4mm}
+  .rule{width:40mm;height:1.2mm;background:#000;margin:4mm 0 0}
+  h1{font-size:52pt;font-weight:900;letter-spacing:5px;margin-top:5mm;line-height:1.12;text-align:center}
+  h1 em{font-style:normal;background:#000;color:#fff;padding:0 4mm;border-radius:3mm}
+  .sub{font-size:19pt;margin-top:5mm;font-weight:700}
+  .stamps{display:grid;grid-template-columns:repeat(10,1fr);gap:2.6mm;width:100%;margin:7mm 0 7mm}
+  .stamps div{aspect-ratio:1;border-radius:50%;border:0.8mm dashed #000;display:flex;align-items:center;justify-content:center;
+    font-size:12pt;font-weight:800}
+  .stamps div.on{background:#000;border:0.8mm solid #000;color:#fff}
+  .stamps div.last{border:0.8mm solid #000;font-size:9pt}
+  .qrbox{border:1mm solid #000;border-radius:6mm;padding:6mm;background:#fff}
+  #qr img,#qr canvas{display:block;width:74mm !important;height:74mm !important}
+  .scan{font-size:15pt;font-weight:800;margin-top:4mm;letter-spacing:1px}
+  .steps{display:flex;gap:5mm;margin-top:6mm;width:100%}
+  .step{flex:1;border:0.6mm solid #000;border-radius:4mm;padding:4mm;text-align:center}
+  .step b{display:inline-flex;width:9mm;height:9mm;border-radius:50%;background:#000;color:#fff;align-items:center;justify-content:center;font-size:14pt}
+  .step div{font-size:14pt;margin-top:2.5mm;font-weight:700;line-height:1.4}
+  .foot{margin-top:auto;padding-top:4mm;font-size:10.5pt;text-align:center;line-height:1.7;font-weight:600}
   @media print{body{background:none}}
 </style>
 </head>
 <body>
 <div class="a4">
+  <div class="frame"></div>
   <div class="brand">韋德機車精品 · WADE MOTO</div>
-  <h1>換機油 <em>集點</em><br>10 次送 1 次</h1>
-  <div class="sub">每次換機油，掃一下就集 1 點</div>
+  <div class="rule"></div>
+  <h1>換機油<em>集點</em><br>10 次送 1 次</h1>
+  <div class="sub">每次換機油，用 LINE 掃一下就集 1 點</div>
   <div class="stamps">
     <div class="on">✓</div><div class="on">✓</div><div class="on">✓</div><div>4</div><div>5</div>
-    <div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+    <div>6</div><div>7</div><div>8</div><div>9</div><div class="last">10</div>
   </div>
   <div class="qrbox"><div id="qr"></div></div>
+  <div class="scan">▲ 用 LINE 掃描 ▲</div>
   <div class="steps">
     <div class="step"><b>1</b><div>用 LINE<br>掃描 QR</div></div>
-    <div class="step"><b>2</b><div>自動集 1 點<br>不用排隊</div></div>
+    <div class="step"><b>2</b><div>第一次填車牌<br>自動集 1 點</div></div>
     <div class="step"><b>3</b><div>滿 10 點<br>跟店家說兌換</div></div>
   </div>
-  <div class="foot">每次來店換機油限集 1 點 · 營業時間內有效<br>新北市新莊區中正路95號 · (02)2998-7231 · LINE @wademoto</div>
+  <div class="foot">兌換：免費換同廠牌機油乙次 · 每台車每次換機油集 1 點<br>新北市新莊區中正路95號 · (02)2998-7231 · LINE @wademoto</div>
 </div>
 <script>
 /* ====== 設定：填好客人集點卡的 LIFF ID ====== */

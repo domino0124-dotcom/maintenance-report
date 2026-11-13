@@ -166,10 +166,10 @@ function renderMain() {
 
     <div class="card hero">
       <div class="ttl">掃描集點卡</div>
-      <div class="lbl">客人在 LINE 打開集點卡出示 QR，掃描後加點或兌換</div>
+      <div class="lbl">客人說要兌換或補點時：輸入車牌查，或掃他集點卡上的 QR</div>
       <button class="btn main scanbtn" id="scanBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/></svg>掃描客人集點卡</button>
       <div class="codebar">
-        <input id="codeIn" placeholder="或輸入會員編號" autocapitalize="characters">
+        <input id="codeIn" placeholder="輸入車牌，例如 NRR-9331" autocapitalize="characters">
         <button class="btn dark" id="codeBtn">查詢</button>
       </div>
     </div>
@@ -188,7 +188,7 @@ function renderMain() {
         const who = mb.name || mb.lineName || r.name || r.code;
         return `<div class="item" data-code="${esc(r.code)}">
           <div class="ava ${r.action === '兌換' ? 'full' : ''}">${esc(who.slice(0, 1))}</div>
-          <div class="mid"><div class="nm">${esc(who)}${mb.plate ? ' <span class="hint">' + esc(mb.plate) + '</span>' : ''}</div>
+          <div class="mid"><div class="nm">${esc(who)}${(r.note || '').includes('｜') ? ' <span class="hint">' + esc(r.note.split('｜')[1]) + '</span>' : (mb.plate ? ' <span class="hint">' + esc(String(mb.plate).replace(/,/g, ' / ')) + '</span>' : '')}</div>
             <div class="meta">${esc(r.action)}${r.action === '自助集點' ? '（牆上 QR）' : ''} · ${fmt(r.time)}</div></div>
           <div class="pts">${r.action === '兌換' ? '<small>兌換</small>' : '+1'}<small> → ${r.after}</small></div></div>`;
       }).join('') : '<div class="hint">還沒有人集點</div>'}
@@ -208,7 +208,7 @@ function renderMain() {
             <div class="ava ${m.full ? 'full' : ''}">${esc((m.name || m.lineName || '?').slice(0, 1))}</div>
             <div class="mid">
               <div class="nm">${esc(m.name || m.lineName || '未命名')}${m.full ? '<span class="badge">可兌換</span>' : ''}</div>
-              <div class="meta">${esc(m.code)}${m.plate ? ' · ' + esc(m.plate) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
+              <div class="meta">${esc(m.code)}${m.plate ? ' · ' + esc(String(m.plate).replace(/,/g, ' / ')) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
               <div class="meta">最後加點 ${fmt(m.lastAdd)} · 已兌換 ${m.redeemed} 次</div>
             </div>
             <div class="pts">${m.points}<small>/${meta.goal}</small></div>
@@ -219,7 +219,20 @@ function renderMain() {
   `;
 
   $('#scanBtn').onclick = scan;
-  $('#codeBtn').onclick = () => { const c = $('#codeIn').value.trim(); if (c) openMember(c); };
+  const findMember = () => {
+    const raw = $('#codeIn').value.trim().toUpperCase();
+    if (!raw) return;
+    const k = raw.replace(/[^A-Z0-9]/g, '');           // 去掉 -、空白，NRR9331 也找得到
+    const norm = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const hits = list.filter(m => norm(m.code) === k || String(m.plate || '').split(',').some(p => norm(p).includes(k))
+      || norm(m.phone).includes(k) || String(m.name || m.lineName || '').toUpperCase().includes(raw));
+    if (hits.length === 1) return openMember(hits[0].code);
+    if (!hits.length) return toast('找不到：' + raw);
+    keyword = raw; filter = 'all'; renderMain();            // 多筆就列在下面
+    toast(`找到 ${hits.length} 位，請點選`);
+  };
+  $('#codeBtn').onclick = findMember;
+  $('#codeIn').onkeydown = e => { if (e.key === 'Enter') findMember(); };
   $('#reloadBtn').onclick = () => loadList(true);
   document.querySelectorAll('.chip').forEach(b => b.onclick = () => { filter = b.dataset.f; renderMain(); });
   document.querySelectorAll('.item').forEach(el => el.onclick = () => openMember(el.dataset.code));
@@ -229,8 +242,11 @@ function renderMain() {
 
 async function loadList(manual) {
   const j = await api('list');
+  if (j.notAdmin) { $('#app').innerHTML = `<div class="err">這個頁面只限店家使用。</div>`; return; }
   if (!j.ok) { toast(j.error || '讀取失敗'); return; }
+  if (j.firstBind) toast('已將你設為集點管理員');
   list = j.members; meta = j.meta; stats = j.stats; recent = j.recent || [];
+  try { localStorage.setItem('ptAdminCache', JSON.stringify({ list, meta, stats, recent })); } catch (e) {}
   renderMain();
   if (manual) toast('已更新');
 }
@@ -268,7 +284,7 @@ function renderMember() {
     <div class="top">
       <div>
         <h2>${esc(m.name || m.lineName || '未命名')}</h2>
-        <div class="hint">${esc(m.code)}${m.plate ? ' · ' + esc(m.plate) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
+        <div class="hint">${esc(m.code)}${m.plate ? ' · ' + esc(String(m.plate).replace(/,/g, ' / ')) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
         ${m.name && m.lineName ? `<div class="hint">LINE：${esc(m.lineName)}</div>` : ''}
       </div>
       <button class="close" onclick="closeSheet()">✕</button>
@@ -339,13 +355,11 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
     idToken = liff.getIDToken();
-    const chk = await api('adminCheck');
-    if (!chk.ok) throw new Error(chk.error || '驗證失敗');
-    if (!chk.isAdmin) {
-      $('#app').innerHTML = `<div class="err">這個頁面只限店家使用。</div>`;
-      return;
-    }
-    if (chk.firstBind) toast('已將你設為集點管理員');
+    // 先秀上次的資料（馬上看得到），背景再抓最新的
+    try {
+      const c = JSON.parse(localStorage.getItem('ptAdminCache') || 'null');
+      if (c) { ({ list, meta, stats } = c); recent = c.recent || []; renderMain(); }
+    } catch (e) {}
     await loadList(false);
   } catch (e) {
     $('#app').innerHTML = `<div class="err">開啟失敗：${esc(e.message)}</div><button class="btn main block" onclick="location.reload()">重新載入</button>`;
