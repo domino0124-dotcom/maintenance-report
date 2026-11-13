@@ -662,13 +662,14 @@ async function viewBill() {
   loadBills();
 }
 
+function countMonth(b) { return b.type === '現金' ? b.month : addMonth(b.month, 1); }
 function billItem(b, selectable) {
   const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
   const unpaid = b.status !== '已付';
   return `<div class="item" data-bill="${esc(b.id)}">
     ${selectable && unpaid ? `<input type="checkbox" class="bsel" data-sel="${esc(b.id)}" data-amt="${b.amount}" ${billSel.has(b.id) ? 'checked' : ''}>` : ''}
     <div style="flex:1;min-width:0"><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
-      <div class="s">${esc(b.month)} 帳${b.method ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
+      <div class="s">${b.type === '現金' ? esc(b.month) + ' 現金貨款' : esc(b.month) + ' 帳'}・算在 ${+countMonth(b).slice(5)} 月${b.method && b.type !== '現金' ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
       <div class="payrow" data-payrow="${esc(b.id)}" style="display:none">
         ${PAY_WAYS.map(w => `<button class="chip" data-payway="${w}" data-for="${esc(b.id)}">${w}</button>`).join('')}
         <button class="del" data-paycancel="${esc(b.id)}">取消</button>
@@ -698,8 +699,11 @@ async function loadBills() {
           <button class="btn ok sm" id="batchPay">勾選的付款</button>
         </div>` : ''}
         ${j.unpaid.length ? j.unpaid.map(b => billItem(b, true)).join('') : '<div class="hint">沒有未付帳款 👍</div>'}</div>
-      <div class="card"><h2>${month()} 帳 <span>${money(sum(j.ofMonth))}</span></h2>
-        ${j.ofMonth.length ? j.ofMonth.map(b => billItem(b, false)).join('') : '<div class="hint">這個月沒有廠商帳</div>'}</div>`;
+      <div class="card"><h2>${+month().slice(5)} 月付的貨款 <span>${money(sum(j.ofMonth))}</span></h2>
+        <div class="hint" style="margin:-6px 0 6px">${+j.prevMonth.slice(5)} 月的月結帳 + ${+month().slice(5)} 月的現金貨款・跟總覽淨利扣的一樣</div>
+        ${j.ofMonth.length ? j.ofMonth.map(b => billItem(b, false)).join('') : '<div class="hint">這個月沒有要付的貨款</div>'}</div>
+      <div class="card"><h2>最近新增 <span class="hint">不分月份，確認剛剛有沒有存到</span></h2>
+        ${(j.recent || []).length ? j.recent.map(b => billItem(b, false)).join('') : '<div class="hint">還沒有帳款</div>'}</div>`;
 
     // 批次
     const updSel = () => {
