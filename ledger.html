@@ -267,8 +267,9 @@ function defaultTxDate() {
   const [y, mo] = m.split('-').map(Number);
   return `${m}-${pad(new Date(y, mo, 0).getDate())}`;
 }
-// 廠商帳月：26 號（含）以後算下個月的帳
-function defaultBillMonth() { const d = new Date(); return d.getDate() >= 26 ? addMonth(thisMonth(), 1) : thisMonth(); }
+// 廠商帳月預設：X月帳在 X/25 結帳、下個月才收到帳單並付款
+// 所以 26 號（含）以後輸入 → 本月帳；1～25 號輸入 → 上個月的帳（例：11/13 輸入 → 10月帳）
+function defaultBillMonth() { const d = new Date(); return d.getDate() >= 26 ? thisMonth() : addMonth(thisMonth(), -1); }
 function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(window._t); window._t=setTimeout(()=>el.classList.remove('show'),2400); }
 function lsGet(k, d){ try { return localStorage.getItem(k) ?? d; } catch { return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
