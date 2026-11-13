@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>集點海報｜韋德機車精品</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  /* ====== 用電腦打開 → 列印（A4 直式、邊界無）====== */
+  @page{size:A4;margin:0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;background:#ddd;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .a4{width:210mm;height:297mm;margin:0 auto;background:#161a24;color:#fff;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;padding:22mm 18mm 16mm}
+  .a4::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,transparent 52%,rgba(227,109,58,.12) 52.2%,transparent 60%),
+               linear-gradient(115deg,transparent 66%,rgba(227,109,58,.09) 66.2%,transparent 75%),
+               radial-gradient(120% 90% at 100% 100%,rgba(227,109,58,.30),transparent 55%)}
+  .a4 > *{position:relative;z-index:1}
+  .brand{font-size:18pt;letter-spacing:4px;color:rgba(255,255,255,.65);font-weight:600}
+  h1{font-size:54pt;font-weight:900;letter-spacing:6px;margin-top:6mm;line-height:1.15;text-align:center}
+  h1 em{font-style:normal;color:#e36d3a}
+  .sub{font-size:20pt;margin-top:5mm;color:rgba(255,255,255,.85);font-weight:600}
+  .stamps{display:grid;grid-template-columns:repeat(10,1fr);gap:3mm;width:100%;margin:11mm 0 9mm}
+  .stamps div{aspect-ratio:1;border-radius:50%;border:2px dashed rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;
+    font-size:12pt;color:rgba(255,255,255,.55);font-weight:700}
+  .stamps div.on{background:#e36d3a;border:2px solid #e36d3a;color:#fff}
+  .stamps div.gift{background:#fff;border-color:#fff;color:#e36d3a;font-size:9pt}
+  .qrbox{background:#fff;border-radius:8mm;padding:9mm;box-shadow:0 10mm 30mm rgba(0,0,0,.35)}
+  #qr img,#qr canvas{display:block;width:78mm !important;height:78mm !important}
+  .steps{display:flex;gap:6mm;margin-top:11mm;width:100%}
+  .step{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:5mm;padding:5mm;text-align:center}
+  .step b{display:inline-flex;width:9mm;height:9mm;border-radius:50%;background:#e36d3a;align-items:center;justify-content:center;font-size:14pt}
+  .step div{font-size:14pt;margin-top:3mm;font-weight:600;line-height:1.4}
+  .foot{margin-top:auto;padding-top:6mm;font-size:11pt;color:rgba(255,255,255,.55);text-align:center;line-height:1.7}
+  @media print{body{background:none}}
+</style>
+</head>
+<body>
+<div class="a4">
+  <div class="brand">韋德機車精品 · WADE MOTO</div>
+  <h1>換機油 <em>集點</em><br>10 次送 1 次</h1>
+  <div class="sub">每次換機油，掃一下就集 1 點</div>
+  <div class="stamps">
+    <div class="on">✓</div><div class="on">✓</div><div class="on">✓</div><div>4</div><div>5</div>
+    <div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+  </div>
+  <div class="qrbox"><div id="qr"></div></div>
+  <div class="steps">
+    <div class="step"><b>1</b><div>用 LINE<br>掃描 QR</div></div>
+    <div class="step"><b>2</b><div>自動集 1 點<br>不用排隊</div></div>
+    <div class="step"><b>3</b><div>滿 10 點<br>跟店家說兌換</div></div>
+  </div>
+  <div class="foot">每次來店換機油限集 1 點 · 營業時間內有效<br>新北市新莊區中正路95號 · (02)2998-7231 · LINE @wademoto</div>
+</div>
+<script>
+/* ====== 設定：填好客人集點卡的 LIFF ID ====== */
+const LIFF_ID = '在這裡貼上客人集點卡的 LIFF ID';
+const WALL_KEY = 'WADE2026'; // 要跟 集點系統.gs 的 WALL_KEY 一樣
+/* ========================================== */
+new QRCode(document.getElementById('qr'), {
+  text: `https://liff.line.me/${LIFF_ID}?add=1&k=${WALL_KEY}`,
+  width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M
+});
+</script>
+</body>
+</html>
