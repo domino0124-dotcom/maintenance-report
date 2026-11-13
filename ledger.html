@@ -757,8 +757,8 @@ async function loadBills() {
 const COL_GUESS = {
   id: ['訂單編號'],
   status: ['訂單狀態'],
-  date: ['訂單成立日期', '訂單成立時間', '訂單建立時間', '訂單日期'],
-  amount: ['訂單總金額', '買家總支付金額', '訂單小計', '商品總價']
+  date: ['訂單成立日期', '訂單成立時間', '訂單建立時間', '訂單日期', '撥款完成日期', '撥款日期'],
+  amount: ['訂單總金額', '買家總支付金額', '訂單小計', '撥款金額', '進帳金額', '商品總價']
 };
 
 function viewShopee() {
@@ -886,7 +886,7 @@ function buildOrders() {
     const id = String(r[col.id] || '').trim();
     if (!id) return;
     const amt = num(r[col.amount]);
-    if (!map.has(id)) map.set(id, { id, status: String(r[col.status] ?? ''), date: parseDate(r[col.date]), amount: amt });
+    if (!map.has(id)) map.set(id, { id, status: col.status >= 0 ? String(r[col.status] ?? '') : '', date: parseDate(r[col.date]), amount: amt });
     else if (multi === 'sum') map.get(id).amount += amt;
   });
   return [...map.values()].filter(o => !isNaN(o.date));
@@ -895,7 +895,7 @@ function buildOrders() {
 function renderParse() {
   const sel = (k, label) => `<div><label>${label}</label><select data-col="${k}">
     <option value="-1">（未選）</option>${parsed.header.map((h, i) => `<option value="${i}" ${i===parsed.col[k]?'selected':''}>${esc(h)}</option>`).join('')}</select></div>`;
-  const ready = ['id','status','date','amount'].every(k => parsed.col[k] >= 0);
+  const ready = ['id','date','amount'].every(k => parsed.col[k] >= 0);   // 訂單狀態可以沒有（進帳報表）
   let preview = '';
   if (ready) {
     const orders = buildOrders();
@@ -915,11 +915,11 @@ function renderParse() {
       <button class="btn main block" id="upload">上傳 ${orders.length} 筆訂單到「${esc($('#shop').value)}」</button>`;
   }
   $('#parseBox').innerHTML = `
-    <div class="row2">${sel('id','訂單編號')}${sel('status','訂單狀態')}${sel('date','訂單日期')}${sel('amount','金額')}</div>
+    <div class="row2">${sel('id','訂單編號')}${sel('status','訂單狀態（進帳報表沒有就不選）')}${sel('date','訂單日期')}${sel('amount','金額')}</div>
     <label>同一張訂單有多行（多件商品）時</label>
     <select id="multi"><option value="first" ${parsed.multi==='first'?'selected':''}>取第一行（金額是整張訂單）</option>
       <option value="sum" ${parsed.multi==='sum'?'selected':''}>全部加總（金額是單一商品）</option></select>
-    ${ready ? preview : '<div class="err" style="margin-top:12px">請把四個欄位都選好</div>'}
+    ${ready ? preview : '<div class="err" style="margin-top:12px">請選好訂單編號、日期、金額</div>'}
   `;
   document.querySelectorAll('[data-col]').forEach(s => s.onchange = () => { parsed.col[s.dataset.col] = +s.value; renderParse(); });
   $('#multi').onchange = e => { parsed.multi = e.target.value; renderParse(); };
