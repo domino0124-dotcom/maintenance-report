@@ -1030,6 +1030,16 @@ $('#month').onchange = () => go(tab);
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    // 電腦瀏覽器會記住舊的登入憑證，過期了就自動重新登入一次
+    const dec = liff.getDecodedIDToken && liff.getDecodedIDToken();
+    if (!dec || dec.exp * 1000 < Date.now() + 120000) {
+      let n = 0; try { n = +sessionStorage.getItem('reLogin') || 0; sessionStorage.setItem('reLogin', n + 1); } catch (e) {}
+      if (n < 2) {
+        if (liff.isInClient()) return location.reload();
+        liff.logout(); return liff.login({ redirectUri: location.href });
+      }
+    }
+    try { sessionStorage.removeItem('reLogin'); } catch (e) {}
     idToken = liff.getIDToken();
     cfg = await api('init');
     go('sum');
