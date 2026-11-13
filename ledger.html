@@ -180,6 +180,13 @@
   .lnk small{display:block;font-size:12px;color:var(--sub);margin-top:1px}
   .card h2 a.btn{text-decoration:none}
   .kpi b small{font-size:12px;color:var(--sub)}
+  .batch{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;background:#f6f7f9;border-radius:14px;margin-bottom:6px}
+  .batch .chips{gap:6px}
+  .batch .chip{padding:7px 12px;font-size:14px}
+  .selall{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;margin:0;color:var(--ink)}
+  .bsel,.selall input{width:20px;height:20px;accent-color:var(--brand);flex:none}
+  .payrow{gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
+  .payrow .chip{padding:7px 14px;font-size:14px;background:var(--ok-soft);border-color:#bfe5cb;color:var(--ok);font-weight:700}
   /* ===== 電腦版 ===== */
   @media (min-width: 900px){
     body{padding-bottom:40px}
@@ -504,54 +511,82 @@ async function loadTxList() {
 }
 
 /* ================= 帳款 ================= */
+const PAY_WAYS = ['現金', '支票', '轉帳'];
+let billSel = new Set(), batchWay = '轉帳';
+
 async function viewBill() {
+  if (billForm.pay === undefined) billForm.pay = '';
+  if (!billForm.payDate) billForm.payDate = today();
+  const isCash = billForm.type === '現金';
   $('#view').innerHTML = `
     <div class="card">
       <h2>新增廠商帳款</h2>
       <div class="seg">
         <button class="${billForm.type==='月結'?'on':''}" data-bt="月結">月結（之後付）</button>
-        <button class="${billForm.type==='現金'?'on':''}" data-bt="現金">現金（當場付）</button>
+        <button class="${isCash?'on':''}" data-bt="現金">現金（當場付）</button>
       </div>
       <label>廠商</label>
-      <input id="vendor" list="vendorList" placeholder="輸入或選擇廠商">
+      <input id="vendor" list="vendorList" placeholder="輸入或選擇廠商" autocomplete="off">
       <datalist id="vendorList">${cfg.vendors.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
       <div class="row2">
-        <div><label>帳月</label><input id="bMonth" type="month" value="${defaultBillMonth()}"></div>
+        <div><label>帳月</label><input id="bMonth" type="month" value="${billForm.month || defaultBillMonth()}"></div>
         <div><label>金額</label><input id="bAmt" type="number" inputmode="numeric" placeholder="0"></div>
       </div>
+      ${isCash ? '' : `
+      <label>付款狀態（補登已付的舊帳，直接選付款方式）</label>
+      <div class="chips" id="payChips">
+        <button class="chip ${billForm.pay===''?'on':''}" data-pay-opt="">未付</button>
+        ${PAY_WAYS.map(w => `<button class="chip ${billForm.pay===w?'on':''}" data-pay-opt="${w}">已付・${w}</button>`).join('')}
+      </div>
+      <div id="payDateBox" style="${billForm.pay ? '' : 'display:none'}"><label>付款日</label><input id="bPayDate" type="date" value="${billForm.payDate}"></div>`}
       <label>備註（選填）</label><input id="bNote" placeholder="例如 發票號碼">
       <button class="btn main block" id="saveBill">新增</button>
-      <div class="hint" style="margin-top:10px">帳月：上月 26 日～本月 25 日進貨算本月帳，下個月付款。</div>
+      <div class="hint" style="margin-top:10px">連續輸入：帳月和付款狀態會保留，只要換廠商和金額，按 Enter 就新增下一筆。</div>
     </div>
     <div id="billLists"><div class="center">載入中…</div></div>
   `;
   document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
+  document.querySelectorAll('[data-pay-opt]').forEach(b => b.onclick = () => {
+    billForm.pay = b.dataset.payOpt;
+    document.querySelectorAll('[data-pay-opt]').forEach(x => x.classList.toggle('on', x === b));
+    $('#payDateBox').style.display = billForm.pay ? '' : 'none';
+  });
+  $('#bMonth').onchange = e => { billForm.month = e.target.value; };
+  if ($('#bPayDate')) $('#bPayDate').onchange = e => { billForm.payDate = e.target.value; };
   $('#saveBill').onclick = async () => {
     const btn = $('#saveBill'); btn.disabled = true;
     const vendor = $('#vendor').value.trim();
     try {
-      await api('addBill', { bill: { vendor, type: billForm.type, month: $('#bMonth').value, amount: $('#bAmt').value, note: $('#bNote').value } });
+      await api('addBill', { bill: { vendor, type: billForm.type, month: $('#bMonth').value, amount: $('#bAmt').value,
+        note: $('#bNote').value, pay: isCash ? '' : billForm.pay, payDate: billForm.payDate } });
       if (!cfg.vendors.includes(vendor)) cfg.vendors.push(vendor);
-      toast('已新增帳款');
+      toast(`已新增 ${vendor} ${money(Number($('#bAmt').value))}${billForm.pay && !isCash ? '（已付・' + billForm.pay + '）' : ''}`);
       $('#vendor').value = ''; $('#bAmt').value = ''; $('#bNote').value = '';
       loadBills();
     } catch (e) { toast(e.message); }
     btn.disabled = false;
     $('#vendor').focus();
   };
+  $('#vendor').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#bAmt').focus(); } };
   ['#bAmt', '#bNote'].forEach(s => $(s).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('#saveBill').click(); } });
   loadBills();
 }
 
-function billItem(b) {
+function billItem(b, selectable) {
   const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
-  return `<div class="item">
-    <div><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
-      <div class="s">${esc(b.month)} 帳${b.method ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div></div>
+  const unpaid = b.status !== '已付';
+  return `<div class="item" data-bill="${esc(b.id)}">
+    ${selectable && unpaid ? `<input type="checkbox" class="bsel" data-sel="${esc(b.id)}" data-amt="${b.amount}" ${billSel.has(b.id) ? 'checked' : ''}>` : ''}
+    <div style="flex:1;min-width:0"><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
+      <div class="s">${esc(b.month)} 帳${b.method ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
+      <div class="payrow" data-payrow="${esc(b.id)}" style="display:none">
+        ${PAY_WAYS.map(w => `<button class="chip" data-payway="${w}" data-for="${esc(b.id)}">${w}</button>`).join('')}
+        <button class="del" data-paycancel="${esc(b.id)}">取消</button>
+      </div></div>
     <div class="r"><div class="t">${Math.round(b.amount).toLocaleString('zh-TW')}</div>
-      ${b.status === '已付'
-        ? `<button class="del" data-unpay="${esc(b.id)}">改回未付</button>`
-        : `<button class="btn ok sm" data-pay="${esc(b.id)}">付款</button>`}
+      ${unpaid
+        ? `<button class="btn ok sm" data-pay="${esc(b.id)}">付款</button>`
+        : `<button class="del" data-unpay="${esc(b.id)}">改回未付</button>`}
       <button class="del" data-bdel="${esc(b.id)}" style="margin-left:8px">刪除</button></div>
   </div>`;
 }
@@ -560,15 +595,58 @@ async function loadBills() {
   try {
     const j = await api('listBills', { month: month() });
     const sum = arr => arr.reduce((a, b) => a + b.amount, 0);
+    const ids = new Set(j.unpaid.map(b => b.id));
+    billSel = new Set([...billSel].filter(id => ids.has(id)));
     $('#billLists').innerHTML = `
       <div class="card"><h2>全部未付 <span class="out">${money(sum(j.unpaid))}</span></h2>
-        ${j.unpaid.length ? j.unpaid.map(billItem).join('') : '<div class="hint">沒有未付帳款 👍</div>'}</div>
+        ${j.unpaid.length ? `
+        <div class="batch">
+          <label class="selall"><input type="checkbox" id="selAll"> 全選</label>
+          <span id="selInfo" class="hint"></span>
+          <div class="chips" style="margin-left:auto">${PAY_WAYS.map(w => `<button class="chip ${batchWay===w?'on':''}" data-bway="${w}">${w}</button>`).join('')}</div>
+          <input type="date" id="batchDate" value="${today()}" style="width:auto;padding:8px 10px">
+          <button class="btn ok sm" id="batchPay">勾選的付款</button>
+        </div>` : ''}
+        ${j.unpaid.length ? j.unpaid.map(b => billItem(b, true)).join('') : '<div class="hint">沒有未付帳款 👍</div>'}</div>
       <div class="card"><h2>${month()} 帳 <span>${money(sum(j.ofMonth))}</span></h2>
-        ${j.ofMonth.length ? j.ofMonth.map(billItem).join('') : '<div class="hint">這個月沒有廠商帳</div>'}</div>`;
-    document.querySelectorAll('[data-pay]').forEach(b => b.onclick = async () => {
-      const m = prompt('付款方式？（現金 / 轉帳 / 支票）', '轉帳');
-      if (m === null) return;
-      try { await api('payBill', { id: b.dataset.pay, method: m }); toast('已標記付款'); loadBills(); } catch (e) { toast(e.message); }
+        ${j.ofMonth.length ? j.ofMonth.map(b => billItem(b, false)).join('') : '<div class="hint">這個月沒有廠商帳</div>'}</div>`;
+
+    // 批次
+    const updSel = () => {
+      const boxes = [...document.querySelectorAll('.bsel')];
+      const amt = boxes.filter(x => x.checked).reduce((a, x) => a + Number(x.dataset.amt), 0);
+      if ($('#selInfo')) $('#selInfo').textContent = billSel.size ? `已選 ${billSel.size} 筆・${money(amt)}` : '';
+      if ($('#batchPay')) $('#batchPay').disabled = !billSel.size;
+      if ($('#selAll')) $('#selAll').checked = boxes.length && boxes.every(x => x.checked);
+    };
+    document.querySelectorAll('.bsel').forEach(cb => cb.onchange = () => { cb.checked ? billSel.add(cb.dataset.sel) : billSel.delete(cb.dataset.sel); updSel(); });
+    if ($('#selAll')) $('#selAll').onchange = e => {
+      document.querySelectorAll('.bsel').forEach(cb => { cb.checked = e.target.checked; cb.checked ? billSel.add(cb.dataset.sel) : billSel.delete(cb.dataset.sel); });
+      updSel();
+    };
+    document.querySelectorAll('[data-bway]').forEach(b => b.onclick = () => {
+      batchWay = b.dataset.bway; document.querySelectorAll('[data-bway]').forEach(x => x.classList.toggle('on', x === b));
+    });
+    if ($('#batchPay')) $('#batchPay').onclick = async () => {
+      const n = billSel.size; if (!n) return;
+      const btn = $('#batchPay'); btn.disabled = true; btn.textContent = '處理中…';
+      try {
+        await api('payBills', { ids: [...billSel], method: batchWay, payDate: $('#batchDate').value });
+        toast(`已付款 ${n} 筆（${batchWay}）`); billSel.clear(); loadBills();
+      } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '勾選的付款'; }
+    };
+    updSel();
+
+    // 單筆付款：點「付款」→ 選 現金／支票／轉帳
+    document.querySelectorAll('[data-pay]').forEach(b => b.onclick = () => {
+      document.querySelectorAll('.payrow').forEach(r => r.style.display = 'none');
+      document.querySelector(`[data-payrow="${b.dataset.pay}"]`).style.display = 'flex';
+    });
+    document.querySelectorAll('[data-paycancel]').forEach(b => b.onclick = () => { document.querySelector(`[data-payrow="${b.dataset.paycancel}"]`).style.display = 'none'; });
+    document.querySelectorAll('[data-payway]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try { await api('payBill', { id: b.dataset.for, method: b.dataset.payway }); toast(`已付款（${b.dataset.payway}）`); loadBills(); }
+      catch (e) { toast(e.message); b.disabled = false; }
     });
     document.querySelectorAll('[data-unpay]').forEach(b => b.onclick = async () => {
       if (!confirm('改回未付？')) return;
