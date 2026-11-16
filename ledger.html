@@ -1031,6 +1031,141 @@ async function upload() {
 }
 
 
+/* ====== 掃描對貨：用手機鏡頭掃包裹標籤的條碼／QR，自動對到清單 ====== */
+const PkScan = (function () {
+  const LIB = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  let libP = null, qr = null, opts = null, last = { t: '', at: 0 }, matchedIds = [];
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function loadLib() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (!libP) libP = new Promise((ok, no) => { const s = document.createElement('script'); s.src = LIB; s.onload = ok; s.onerror = () => no(new Error('掃描元件載入失敗，請檢查網路')); document.head.appendChild(s); });
+    return libP;
+  }
+
+  function css() {
+    if (document.getElementById('pkscan-css')) return;
+    const st = document.createElement('style'); st.id = 'pkscan-css';
+    st.textContent = `
+      #pkscan{position:fixed;inset:0;z-index:50;background:#0b0d12;color:#fff;display:flex;flex-direction:column;font-family:inherit}
+      #pkscan .bar{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+      #pkscan .bar b{font-size:17px}
+      #pkscan .x{background:#ffffff1f;border:0;color:#fff;border-radius:999px;padding:8px 16px;font-size:15px;font-weight:700}
+      #pkscan #pkReader{width:100%;max-width:520px;margin:0 auto;background:#000;min-height:220px}
+      #pkscan #pkReader video{object-fit:cover}
+      #pkscan .tip{text-align:center;color:#aab;font-size:13px;padding:8px 14px}
+      #pkscan .manual{display:flex;gap:8px;padding:0 14px 8px;max-width:520px;margin:0 auto;width:100%}
+      #pkscan .manual input{flex:1;padding:11px 12px;border-radius:10px;border:1px solid #333;background:#161a22;color:#fff;font-size:16px;width:auto}
+      #pkscan .manual button{border:0;border-radius:10px;padding:0 16px;background:#e36d3a;color:#fff;font-weight:700;font-size:15px}
+      #pkscan .sum{padding:6px 14px;font-size:14px;color:#cfd3dc;max-width:520px;margin:0 auto;width:100%}
+      #pkscan .log{flex:1;overflow:auto;padding:4px 14px calc(14px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;width:100%}
+      #pkscan .it{border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:14px;line-height:1.5;display:flex;justify-content:space-between;gap:10px;align-items:center}
+      #pkscan .it.ok{background:#12351f;border:1px solid #1f6b3a}
+      #pkscan .it.dup{background:#1d2230;border:1px solid #333a4d}
+      #pkscan .it.no{background:#3a2a10;border:1px solid #7a5418}
+      #pkscan .it small{display:block;color:#aab;font-size:12px}
+      #pkscan .it button{border:0;border-radius:8px;padding:6px 10px;background:#ffffff1f;color:#fff;font-size:13px;flex:none}
+      #pkscan .left{background:#161a22;border-radius:12px;padding:10px 12px;margin-top:6px;font-size:13px;color:#cfd3dc;line-height:1.6}`;
+    document.head.appendChild(st);
+  }
+
+  const norm = (s) => String(s || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+  function find(text) {
+    const s = norm(text);
+    if (!s) return null;
+    const all = opts.getItems();
+    // 1) 掃到的字串裡含寄件編號或訂單編號
+    let hit = all.find((it) => (it.track && s.includes(norm(it.track))) || (it.order && s.includes(norm(it.order))));
+    if (hit) return hit;
+    // 2) 手動輸入後幾碼（至少 4 碼）
+    if (s.length >= 4 && s.length < 10) {
+      const c = all.filter((it) => (it.track && norm(it.track).endsWith(s)) || (it.order && norm(it.order).endsWith(s)));
+      if (c.length === 1) return c[0];
+      if (c.length > 1) return { multi: c };
+    }
+    return null;
+  }
+
+  function summary() {
+    const left = opts.getItems().filter((it) => it.status !== '已取件' && matchedIds.indexOf(it.id) === -1);
+    document.getElementById('pkSum').textContent = `這次已對到 ${matchedIds.length} 件・清單上還有 ${left.length} 件沒掃到`;
+    document.getElementById('pkLeft').innerHTML = left.length
+      ? '<b>還沒掃到的（可能還在門市）：</b><br>' + left.map((it) => `#${esc(it.id)} ${esc(it.shop)}${it.track ? ' ' + esc(it.track.slice(-6)) : ''}${it.status === '逾期未取' ? '（過期）' : ''}`).join('<br>')
+      : '🎉 清單上的全部都對到了';
+  }
+
+  function addLog(cls, html, undoId) {
+    const log = document.getElementById('pkLog');
+    const d = document.createElement('div'); d.className = 'it ' + cls;
+    d.innerHTML = '<div>' + html + '</div>' + (undoId ? '<button>復原</button>' : '');
+    if (undoId) d.querySelector('button').onclick = async () => {
+      d.querySelector('button').disabled = true;
+      try { await opts.setStatus(undoId, 'undo'); matchedIds = matchedIds.filter((x) => x !== undoId); d.remove(); summary(); }
+      catch (e) { alert('復原失敗：' + e.message); d.querySelector('button').disabled = false; }
+    };
+    log.insertBefore(d, log.firstChild);
+    if (navigator.vibrate) navigator.vibrate(cls === 'ok' ? 60 : [40, 60, 40]);
+  }
+
+  async function handle(text) {
+    const now = Date.now();
+    if (text === last.t && now - last.at < 4000) return;   // 同一張標籤連續掃到只算一次
+    last = { t: text, at: now };
+    const it = find(text);
+    if (it && it.multi) { addLog('no', '後幾碼對到好幾件，請多輸入幾碼：<small>' + it.multi.map((x) => '#' + esc(x.id) + ' ' + esc(x.shop)).join('、') + '</small>'); return; }
+    if (!it) { addLog('no', '⚠️ 清單沒有這件<small>' + esc(text.slice(0, 40)) + '<br>可能是買家退貨還沒同步、或別人寄給你的包裹</small>'); return; }
+    if (it.status === '已取件' || matchedIds.indexOf(it.id) !== -1) { addLog('dup', '已經標過了：#' + esc(it.id) + ' ' + esc(it.shop)); return; }
+    try {
+      await opts.setStatus(it.id, 'done');
+      matchedIds.push(it.id);
+      addLog('ok', '✓ #' + esc(it.id) + ' ' + esc(it.shop) + '<small>' + esc(it.track || it.order || '') + '・已標記已拿</small>', it.id);
+      summary();
+    } catch (e) { addLog('no', '標記失敗：' + esc(e.message)); }
+  }
+
+  async function open(o) {
+    opts = o; matchedIds = []; last = { t: '', at: 0 };
+    css();
+    const box = document.createElement('div'); box.id = 'pkscan';
+    box.innerHTML = `
+      <div class="bar"><b>📷 掃描對貨</b><button class="x" id="pkClose">完成</button></div>
+      <div id="pkReader"></div>
+      <div class="tip">對準包裹標籤上的<b>條碼</b>（寄件編號那條）或 QR 碼，對到會自動標記已拿</div>
+      <div class="manual"><input id="pkMan" placeholder="掃不到？輸入寄件編號後 4～6 碼" autocomplete="off"><button id="pkManGo">對</button></div>
+      <div class="sum" id="pkSum"></div>
+      <div class="log"><div id="pkLog"></div><div class="left" id="pkLeft"></div></div>`;
+    document.body.appendChild(box);
+    document.body.style.overflow = 'hidden';
+    summary();
+    const man = () => { const v = document.getElementById('pkMan').value.trim(); if (v) { last = { t: '', at: 0 }; handle(v); document.getElementById('pkMan').value = ''; } };
+    document.getElementById('pkManGo').onclick = man;
+    document.getElementById('pkMan').onkeydown = (e) => { if (e.key === 'Enter') man(); };
+    document.getElementById('pkClose').onclick = close;
+    try {
+      await loadLib();
+      const F = window.Html5QrcodeSupportedFormats;
+      qr = new window.Html5Qrcode('pkReader', { formatsToSupport: [F.CODE_128, F.QR_CODE, F.CODE_39, F.EAN_13], verbose: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+      const w = Math.min(window.innerWidth - 40, 480);
+      await qr.start({ facingMode: 'environment' }, { fps: 12, qrbox: { width: w, height: Math.round(w * 0.45) } }, (t) => handle(t), () => {});
+    } catch (e) {
+      document.getElementById('pkReader').innerHTML = '<div style="padding:30px 16px;text-align:center;color:#f5b971;font-size:14px">相機開不起來：' + esc(e.message || e) +
+        '<br><br>請允許相機權限；LINE 裡打不開的話，點右上角「⋯」→ 用預設瀏覽器開啟。<br>也可以直接在下面輸入寄件編號後幾碼。</div>';
+    }
+  }
+
+  async function close() {
+    try { if (qr) { await qr.stop(); qr.clear(); } } catch (e) {}
+    qr = null;
+    const box = document.getElementById('pkscan'); if (box) box.remove();
+    document.body.style.overflow = '';
+    if (opts && opts.onClose) opts.onClose(matchedIds.length);
+  }
+
+  return { open };
+})();
+
 /* ================= 蝦皮取件 ================= */
 // 資料來源：篡改猴每天同步 → GAS「退件追蹤」分頁。密碼＝篡改猴腳本的 SECRET（只存在這支手機）
 const PK_URL = GAS_URL + '?src=shopee_pickup';
@@ -1081,7 +1216,8 @@ function pkCard(it) {
     <div class="meta">
       <div>📍 ${esc(it.store || '未填門市')}</div>
       ${it.deadline ? `<div>⏰ ${late ? '找客服期限' : '取件期限'} ${esc(it.deadline)}</div>` : ''}
-      ${it.order ? `<div>🧾 ${esc(it.order)}</div>` : ''}
+      ${it.track ? `<div>🏷️ 寄件 <b style="color:var(--ink)">${esc(it.track)}</b></div>` : ''}
+      ${it.order ? `<div>🧾 訂單 ${esc(it.order)}</div>` : ''}
       ${it.phone ? `<div>📞 ${esc(it.phone)}</div>` : ''}
     </div>
     <div class="acts">${done
@@ -1117,7 +1253,7 @@ async function viewPickup() {
   }
   const g = pkSplit();
   const list = g[pkTab].filter(it => !pkQuery ||
-    [it.shop, it.code, it.store, it.order, it.id].join(' ').toLowerCase().includes(pkQuery.toLowerCase()));
+    [it.shop, it.code, it.store, it.order, it.track, it.id].join(' ').toLowerCase().includes(pkQuery.toLowerCase()));
   const empty = { pending: '🎉 全部都拿了', late: '👍 沒有過期的', done: '還沒有已處理的紀錄' }[pkTab];
   box.innerHTML = `
     <div class="seg3">
@@ -1126,9 +1262,10 @@ async function viewPickup() {
       <button data-pt="done" class="${pkTab === 'done' ? 'on' : ''}">已取</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
-      <input id="pkQ" placeholder="搜尋賣場／驗證碼／訂單" value="${esc(pkQuery)}">
+      <input id="pkQ" placeholder="搜尋賣場／驗證碼／訂單／寄件編號" value="${esc(pkQuery)}">
       <button class="btn gray" id="pkRefresh" style="flex:none">重新整理</button>
     </div>
+    <button class="btn main" id="pkScan" style="width:100%;margin-bottom:12px">📷 掃描對貨（拿回來的包裹掃一下就標記）</button>
     ${list.length ? `<div class="pkgrid">${list.map(pkCard).join('')}</div>`
       : `<div class="card"><div class="center" style="padding:28px 0">${pkQuery ? '找不到符合的' : empty}</div></div>`}
     <div class="hint" style="margin:14px 4px 0">每天下午 1 點後篡改猴會自動同步 8 個賣場。老闆娘用：<a href="https://domino0124-dotcom.github.io/maintenance-report/shopee-pickup.html">取件獨立頁</a></div>`;
@@ -1136,6 +1273,17 @@ async function viewPickup() {
   const q = $('#pkQ');
   q.oninput = () => { pkQuery = q.value; const pos = q.selectionStart; viewPickup(); const n = $('#pkQ'); n.focus(); n.setSelectionRange(pos, pos); };
   $('#pkRefresh').onclick = () => { pkData = null; viewShopee(); };
+  $('#pkScan').onclick = () => PkScan.open({
+    getItems: () => [...pkData.pending, ...pkData.done],
+    setStatus: async (id, action) => {
+      const res = await pkApi({ action, id });
+      const it = [...pkData.pending, ...pkData.done].find(x => x.id === id);
+      pkData.pending = pkData.pending.filter(x => x.id !== id);
+      pkData.done = pkData.done.filter(x => x.id !== id);
+      if (it) { it.status = res.status; (res.status === '已取件' ? pkData.done : pkData.pending).unshift(it); }
+    },
+    onClose: n => { pkData.pending.sort((a, b) => (a.deadline || '9') < (b.deadline || '9') ? -1 : 1); pkBadge(); viewShopee(); if (n) toast(`這次對到 ${n} 件`); }
+  });
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
     const v = b.dataset.copy;
     (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('已複製 ' + v), () => toast('請長按驗證碼複製'));
