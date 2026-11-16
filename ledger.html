@@ -1145,7 +1145,7 @@ const PkScan = (function () {
     css();
     const box = document.createElement('div'); box.id = 'pkscan';
     box.innerHTML = `
-      <div class="bar"><b>📷 掃描對貨</b><button class="x" id="pkClose">完成</button></div>
+      <div class="bar"><b>📷 掃描對貨 <small style="font-weight:400;color:#889;font-size:12px">v3</small></b><button class="x" id="pkClose">完成</button></div>
       <div id="pkReader"></div>
       <div class="tip">鏡頭對準標籤中間那條<b>長條碼</b>，條碼要橫的、整條都入鏡，距離約 15～20 公分</div>
       <div class="manual"><input id="pkMan" placeholder="掃不到？輸入寄件編號後 4～6 碼" autocomplete="off"><button id="pkManGo">對</button></div>
