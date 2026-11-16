@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI 客服後台｜韋德機車精品</title>
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --ink:#15211b; --sub:#6b7a72; --line:#e3e8e5;
+    --green:#16a34a; --green-d:#0f3d2a; --green-dd:#0a2a1d; --green-l:#e8f6ee;
+    --amber:#d97706; --amber-l:#fef3e2; --red:#dc2626; --red-l:#fdecec; --blue:#2563eb; --blue-l:#e8effd;
+    --radius:16px; --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:980px;margin:0 auto;padding:16px 16px 96px}
+  header.top{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
+  header.top .logo{width:36px;height:36px;border-radius:10px;background:var(--green-d);display:grid;place-items:center;color:#fff;font-weight:700}
+  header.top h1{font-size:20px;margin:0;line-height:1.2}
+  header.top small{display:block;color:var(--sub);font-size:12px;font-weight:400}
+  header.top .sp{flex:1}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;font-weight:600}
+  .btn:active{transform:scale(.98)}
+  .btn.pri{background:var(--green);border-color:var(--green);color:#fff}
+  .btn.dark{background:#fff;color:var(--green-d);border-color:#fff}
+  .btn.ghost{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff}
+  .btn.danger{color:var(--red)}
+  .btn.sm{padding:5px 10px;font-size:13px;border-radius:10px}
+  .btn[disabled]{opacity:.5;pointer-events:none}
+
+  /* hero */
+  .hero{background:radial-gradient(120% 140% at 85% 0%,#1d5c40 0%,var(--green-d) 45%,var(--green-dd) 100%);color:#fff;border-radius:22px;padding:22px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;box-shadow:var(--shadow)}
+  .hero .l{flex:1 1 260px}
+  .hero .date{font-size:13px;opacity:.85;display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+  .dot.test{background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.25)}
+  .dot.off{background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.25)}
+  .hero h2{font-size:28px;margin:6px 0 2px;letter-spacing:.5px}
+  .hero p{margin:0 0 14px;opacity:.85}
+  .hero .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .hero .stats{display:flex;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:16px;overflow:hidden}
+  .hero .stat{padding:12px 18px;min-width:84px}
+  .hero .stat+.stat{border-left:1px solid rgba(255,255,255,.12)}
+  .hero .stat small{display:block;font-size:12px;opacity:.75}
+  .hero .stat b{font-size:28px}
+  .hero .stat i{font-style:normal;font-size:12px;opacity:.75;margin-left:2px}
+
+  @media (max-width:760px){.hero .stats{width:100%}.hero .stat{flex:1;min-width:0}}
+  h3.sec{font-size:15px;color:var(--sub);margin:22px 4px 10px;font-weight:600}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:760px){.grid4{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .tile{display:block;text-align:left;border:0;width:100%}
+  .tile .hd{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+  .tile .hd .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:15px}
+  .tile .hd .ar{margin-left:auto;color:var(--sub);font-size:13px}
+  .tile .num{font-size:30px;font-weight:700;margin:10px 0 0}
+  .tile .num i{font-style:normal;font-size:13px;color:var(--sub);font-weight:400;margin-left:3px}
+  .tile .ft{font-size:12px;color:var(--sub)}
+  .ic.g{background:var(--green-l)} .ic.a{background:var(--amber-l)} .ic.b{background:var(--blue-l)} .ic.r{background:var(--red-l)}
+  .tile.alert{outline:2px solid var(--amber)}
+
+  .bk-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .bk-row:first-child{border-top:0}
+  .bk-time{font-weight:700;min-width:52px}
+  .bk-main{flex:1;min-width:0}
+  .bk-main small{color:var(--sub);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:#eef1ef;color:var(--sub);white-space:nowrap}
+  .chip.g{background:var(--green-l);color:var(--green)} .chip.a{background:var(--amber-l);color:var(--amber)} .chip.r{background:var(--red-l);color:var(--red)} .chip.b{background:var(--blue-l);color:var(--blue)}
+  .bar{height:8px;background:#eef1ef;border-radius:99px;overflow:hidden;margin:8px 0 4px}
+  .bar span{display:block;height:100%;background:var(--green);border-radius:99px}
+  .bar span.a{background:var(--amber)} .bar span.r{background:var(--red)}
+  .empty{color:var(--sub);text-align:center;padding:18px 0;font-size:14px}
+
+  .rings{display:flex;justify-content:space-around;gap:10px;padding-top:6px}
+  .ring{text-align:center}
+  .ring svg{width:110px;height:110px}
+  .ring b{display:block;font-size:13px;margin-top:4px}
+  .ring small{color:var(--sub);font-size:12px}
+
+  /* list */
+  .list .item{display:flex;gap:12px;align-items:center;padding:12px 4px;border-top:1px solid var(--line);cursor:pointer}
+  .list .item:first-child{border-top:0}
+  .av{width:42px;height:42px;border-radius:50%;background:var(--green-l);color:var(--green-d);display:grid;place-items:center;font-weight:700;flex:0 0 auto}
+  .list .mid{flex:1;min-width:0}
+  .list .mid b{display:flex;gap:6px;align-items:center}
+  .list .mid small{display:block;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list .rt{text-align:right;font-size:12px;color:var(--sub);flex:0 0 auto}
+
+  /* chat */
+  .chat-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .chat-head .nm{font-weight:700;font-size:17px;flex:1}
+  .msgs{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;padding:4px 2px}
+  .bub{max-width:80%;padding:9px 12px;border-radius:16px;white-space:pre-wrap;word-break:break-word;font-size:14px}
+  .bub small{display:block;font-size:11px;opacity:.6;margin-top:3px}
+  .bub.c{align-self:flex-start;background:#eef1ef;border-bottom-left-radius:4px}
+  .bub.ai{align-self:flex-end;background:var(--green-l);border-bottom-right-radius:4px}
+  .bub.boss{align-self:flex-end;background:var(--green-d);color:#fff;border-bottom-right-radius:4px}
+  .who{font-size:11px;color:var(--sub);margin:0 6px}
+  .who.r{align-self:flex-end}
+  .send{display:flex;gap:8px;margin-top:12px}
+  .send textarea{flex:1;border:1px solid var(--line);border-radius:12px;padding:10px;resize:none;height:46px;background:#fff}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+
+  /* forms */
+  .field{display:block;margin:8px 0}
+  .field span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+  .field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+  .field textarea{min-height:90px;resize:vertical}
+  .row-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+  .todo{border-top:1px solid var(--line);padding:14px 0}
+  .todo:first-child{border-top:0;padding-top:4px}
+  .todo .q{font-weight:600}
+  .todo .meta{font-size:12px;color:var(--sub)}
+  .kb-cat{font-size:13px;color:var(--sub);font-weight:600;margin:16px 4px 8px}
+  .kb{padding:12px 14px;margin-bottom:8px;cursor:pointer}
+  .kb .t{font-weight:600;display:flex;gap:6px;align-items:center}
+  .kb .a{font-size:13px;color:var(--sub);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .kb.off{opacity:.5}
+  .search{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:6px}
+
+  /* nav */
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:20}
+  nav.tabs .in{display:flex;max-width:980px;width:100%}
+  nav.tabs button{flex:1;border:0;background:none;padding:8px 0 10px;font-size:12px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+  nav.tabs button .e{font-size:20px;line-height:1.2;filter:grayscale(1);opacity:.6}
+  nav.tabs button.on{color:var(--green-d);font-weight:700}
+  nav.tabs button.on .e{filter:none;opacity:1}
+  nav.tabs .badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--red);color:#fff;font-size:10px;border-radius:99px;padding:0 5px;min-width:16px}
+
+  /* login */
+  .login{max-width:360px;margin:12vh auto 0;text-align:center}
+  .login .card{padding:26px}
+  .login input{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;text-align:center;font-size:16px}
+  .err{color:var(--red);font-size:13px;min-height:18px}
+
+  .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#15211b;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+  .toast.show{opacity:1}
+  .loading{color:var(--sub);text-align:center;padding:40px 0}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- 登入 -->
+<div id="loginView" class="wrap hide">
+  <div class="login">
+    <div class="card">
+      <div style="font-size:40px">🤖</div>
+      <h2 style="margin:6px 0 0">AI 客服後台</h2>
+      <div style="color:var(--sub);font-size:13px">韋德機車精品</div>
+      <input id="pw" type="password" placeholder="輸入後台密碼" autocomplete="current-password">
+      <div class="err" id="loginErr"></div>
+      <button class="btn pri" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主畫面 -->
+<div id="appView" class="hide">
+  <div class="wrap">
+    <header class="top">
+      <div class="logo">韋</div>
+      <h1><span id="pageTitle">總覽</span><small>韋德機車精品・AI 客服後台</small></h1>
+      <div class="sp"></div>
+      <button class="btn sm" onclick="refresh()">↻ 重新整理</button>
+    </header>
+    <main id="main"><div class="loading">載入中…</div></main>
+  </div>
+  <nav class="tabs"><div class="in">
+    <button data-tab="home" class="on" onclick="go('home')"><span class="e">📊</span>總覽</button>
+    <button data-tab="inbox" onclick="go('inbox')"><span class="e">💬</span>客服<span class="badge hide" id="bdInbox"></span></button>
+    <button data-tab="todo" onclick="go('todo')"><span class="e">❓</span>待補<span class="badge hide" id="bdTodo"></span></button>
+    <button data-tab="kb" onclick="go('kb')"><span class="e">📚</span>知識庫</button>
+  </div></nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== 設定 ====== */
+const API = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
+const PW_KEY = 'wade_ai_admin_pw';
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+/* ====== 工具 ====== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function store(k, v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k, v);}catch(e){ return null; } }
+let PW = store(PW_KEY) || '';
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+async function api(type, data){
+  if (DEMO) return demoApi(type, data || {});
+  const res = await fetch(API, { method:'POST', body: JSON.stringify(Object.assign({ type, pw: PW }, data || {})) });
+  const j = await res.json();
+  if (j.auth === false) { logout(j.error); throw new Error(j.error); }
+  if (!j.ok) throw new Error(j.error || '發生錯誤');
+  return j;
+}
+
+/* ====== 登入 ====== */
+async function doLogin(){
+  PW = $('#pw').value.trim();
+  $('#loginErr').textContent = '';
+  if (!PW) { $('#loginErr').textContent = '請輸入密碼'; return; }
+  try { await api('ai_admin_login'); store(PW_KEY, PW); showApp(); }
+  catch(e){ $('#loginErr').textContent = e.message; }
+}
+function logout(msg){ PW=''; store(PW_KEY, null); $('#appView').classList.add('hide'); $('#loginView').classList.remove('hide'); $('#loginErr').textContent = msg || ''; }
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+/* ====== 分頁 ====== */
+let TAB = 'home', CHAT_USER = null;
+const TITLES = { home:'總覽', inbox:'客服', todo:'待補問題', kb:'知識庫' };
+function showApp(){ $('#loginView').classList.add('hide'); $('#appView').classList.remove('hide'); go(location.hash.slice(1) || 'home'); }
+function go(tab){
+  if (!TITLES[tab]) tab = 'home';
+  TAB = tab; if (tab !== 'inbox') CHAT_USER = null;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  $('#pageTitle').textContent = TITLES[tab];
+  history.replaceState(null, '', '#' + tab + (DEMO ? '' : ''));
+  refresh();
+}
+function refresh(){
+  $('#main').innerHTML = '<div class="loading">載入中…</div>';
+  ({ home: renderHome, inbox: CHAT_USER ? () => openChat(CHAT_USER) : renderInbox, todo: renderTodo, kb: renderKb })[TAB]()
+    .catch(e => { $('#main').innerHTML = '<div class="card empty">⚠️ ' + esc(e.message) + '</div>'; });
+}
+function setBadge(id, n){ const b = $(id); b.textContent = n; b.classList.toggle('hide', !n); }
+
+/* ====== 總覽 ====== */
+function ring(used, limit, label){
+  const left = limit ? Math.max(0, limit - used) : null;
+  const pct = limit ? Math.min(1, used / limit) : 0;
+  const color = pct > .9 ? 'var(--red)' : pct > .7 ? 'var(--amber)' : 'var(--green)';
+  const C = 2 * Math.PI * 46;
+  return `<div class="ring">
+    <svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="46" fill="none" stroke="#eef1ef" stroke-width="10"/>
+      <circle cx="55" cy="55" r="46" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"
+        stroke-dasharray="${C}" stroke-dashoffset="${C * pct}" transform="rotate(-90 55 55)"/>
+      <text x="55" y="54" text-anchor="middle" font-size="24" font-weight="700" fill="#15211b">${left == null ? '∞' : left}</text>
+      <text x="55" y="72" text-anchor="middle" font-size="11" fill="#6b7a72">則剩餘</text></svg>
+    <b>${esc(label)}</b><small>本月已用 ${used}${limit ? ' / ' + limit : ''}</small></div>`;
+}
+
+async function renderHome(){
+  const d = await api('ai_admin_overview');
+  setBadge('#bdInbox', d.humans.length); setBadge('#bdTodo', d.todoCount);
+  const hi = d.hour < 11 ? '早安' : d.hour < 18 ? '午安' : '晚安';
+  const st = { on:['','AI 客服運作中'], test:['test','AI 測試模式（只回測試名單）'], off:['off','AI 客服已關閉'] }[d.status];
+  const bk = d.booking;
+  const bkCount = bk && bk.count ? bk.count : {};
+  const done = (bkCount['已完成'] || 0) + (bkCount['已報到'] || 0);
+  const bkTotal = bk && bk.total || 0;
+  const bkList = bk && bk.list && bk.list.length
+    ? bk.list.map(b => `<div class="bk-row"><div class="bk-time">${esc(b.time || '')}</div>
+        <div class="bk-main"><b>${esc(b.service || '')}</b><small>${esc([b.name, b.car].filter(Boolean).join('｜') || '未留姓名')}</small></div>
+        <span class="chip ${b.status==='已預約'?'b':b.status==='已完成'||b.status==='已報到'?'g':b.status==='未到'?'r':''}">${esc(b.status)}</span></div>`).join('')
+    : `<div class="empty">${bk && bk.error ? '預約資料讀取失敗' : bk ? '今天還沒有預約' : '找不到預約系統'}</div>`;
+
+  $('#main').innerHTML = `
+    <section class="hero">
+      <div class="l">
+        <div class="date"><span class="dot ${st[0]}"></span>${esc(d.now)}・${st[1]}</div>
+        <h2>${hi}，老闆</h2>
+        <p>${d.humans.length ? '有 ' + d.humans.length + ' 位客人等你親自回覆' : bkTotal ? '今天有 ' + bkTotal + ' 筆預約' : '今天還沒有預約，AI 幫你顧著 👍'}</p>
+        <div class="acts">
+          <button class="btn dark" onclick="go('inbox')">💬 前往客服</button>
+          <button class="btn ghost" onclick="toggleAi(${d.status === 'off'})">${d.status === 'off' ? '▶️ 開啟 AI' : '⏸ 關閉 AI'}</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><small>今日預約</small><b>${bkTotal}</b><i>筆</i></div>
+        <div class="stat"><small>已完成</small><b>${done}</b><i>筆</i></div>
+        <div class="stat"><small>待人工</small><b>${d.humans.length}</b><i>位</i></div>
+      </div>
+    </section>
+
+    <h3 class="sec">待處理</h3>
+    <div class="grid4">
+      <button class="card tile ${d.humans.length ? 'alert' : ''}" onclick="go('inbox')">
+        <div class="hd"><span class="ic a">🙋</span>待人工對話<span class="ar">↗</span></div>
+        <div class="num">${d.humans.length}<i>位</i></div><div class="ft">轉真人、等你回覆</div></button>
+      <button class="card tile" onclick="go('inbox')">
+        <div class="hd"><span class="ic b">💬</span>今日訊息<span class="ar">↗</span></div>
+        <div class="num">${d.todayIn}<i>則</i></div><div class="ft">${d.todayUsers} 位客人・AI 回了 ${d.todayAi} 則</div></button>
+      <button class="card tile ${d.todoCount ? 'alert' : ''}" onclick="go('todo')">
+        <div class="hd"><span class="ic g">❓</span>AI 待補問題<span class="ar">↗</span></div>
+        <div class="num">${d.todoCount}<i>題</i></div><div class="ft">補上答案，AI 下次就會回答</div></button>
+      <button class="card tile" onclick="go('inbox')">
+        <div class="hd"><span class="ic r">👥</span>顧客總數<span class="ar">↗</span></div>
+        <div class="num">${d.customers}<i>位</i></div><div class="ft">傳過訊息給 AI 的客人</div></button>
+    </div>
+
+    <h3 class="sec">今天</h3>
+    <div class="grid2">
+      <div class="card">
+        <div class="tile"><div class="hd"><span class="ic a">📅</span>今日預約
+          <span class="ar">${bk && bk.open === false ? '<span class="chip r">預約暫停中</span>' : ''}</span></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin-top:10px">
+          <span>完成率</span><span>共 ${bkTotal} 筆</span></div>
+        <div class="bar"><span style="width:${bkTotal ? Math.round(done / bkTotal * 100) : 0}%"></span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px">
+          ${['已預約','已報到','已完成','未到'].map(s => `<span class="chip">${s} ${bkCount[s] || 0}</span>`).join('')}
+        </div>
+        ${bkList}
+      </div>
+      <div class="card">
+        <div class="tile"><div class="hd"><span class="ic g">📨</span>LINE 推播額度<span class="ar" style="font-size:12px">每月 1 號重置</span></div></div>
+        <div class="rings">
+          ${d.quotaWade ? ring(d.quotaWade.used, d.quotaWade.limit, '韋德機車精品') : '<div class="empty">讀不到</div>'}
+          ${d.quotaMain ? ring(d.quotaMain.used, d.quotaMain.limit, '商品登記專用') : '<div class="empty">讀不到</div>'}
+        </div>
+        <div class="hint" style="text-align:center">AI 回覆客人不算額度；轉真人通知、後台回覆客人才會用到</div>
+      </div>
+    </div>
+    ${d.humans.length ? `<h3 class="sec">等你回覆</h3><div class="card list">${d.humans.map(h => `
+      <div class="item" onclick="openChat('${esc(h.userId)}')"><div class="av">${esc((h.name || '?').slice(0,1))}</div>
+      <div class="mid"><b>${esc(h.name || '(未知)')}</b><small>轉真人時間 ${esc(h.since)}</small></div><div class="rt">›</div></div>`).join('')}</div>` : ''}
+    <div class="hint" style="text-align:center;margin-top:16px">AI 模型：${esc(d.model)}</div>`;
+}
+
+async function toggleAi(on){
+  if (!on && !confirm('確定要關閉 AI？關閉後所有客人的訊息都要你自己回。')) return;
+  await api('ai_admin_switch', { on });
+  toast(on ? '已開啟 AI' : '已關閉 AI');
+  refresh();
+}
+
+/* ====== 客服 ====== */
+async function renderInbox(){
+  const d = await api('ai_admin_conversations');
+  const waiting = d.list.filter(u => u.mode === '真人').length;
+  setBadge('#bdInbox', waiting);
+  if (!d.list.length) { $('#main').innerHTML = '<div class="card empty">還沒有客人傳訊息給 AI</div>'; return; }
+  $('#main').innerHTML = `<div class="card list">${d.list.map(u => `
+    <div class="item" onclick="openChat('${esc(u.userId)}')">
+      <div class="av">${esc((u.name || '?').slice(0,1))}</div>
+      <div class="mid"><b>${esc(u.name || '(未知)')}
+        ${u.mode === '真人' ? '<span class="chip a">真人</span>' : '<span class="chip g">AI</span>'}
+        ${u.waiting ? '<span class="chip r">待回覆</span>' : ''}</b>
+        <small>${u.lastRole === '客人' ? '' : esc(u.lastRole) + '：'}${esc(u.last)}</small></div>
+      <div class="rt">${esc(u.lastTime)}<br>${u.count} 則</div>
+    </div>`).join('')}</div>`;
+}
+
+async function openChat(userId){
+  CHAT_USER = userId;
+  if (TAB !== 'inbox') { TAB = 'inbox'; document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'inbox')); $('#pageTitle').textContent = '客服'; }
+  $('#main').innerHTML = '<div class="loading">載入中…</div>';
+  const d = await api('ai_admin_chat', { userId });
+  const left = d.quota && d.quota.limit ? d.quota.limit - d.quota.used : null;
+  const isHuman = d.mode === '真人';
+  $('#main').innerHTML = `
+    <div class="card">
+      <div class="chat-head">
+        <button class="btn sm" onclick="CHAT_USER=null;refresh()">‹ 返回</button>
+        <div class="nm">${esc(d.name || '(未知)')}</div>
+        ${isHuman ? '<span class="chip a">真人模式</span>' : '<span class="chip g">AI 回覆中</span>'}
+        <button class="btn sm ${isHuman ? 'pri' : ''}" onclick="setMode('${esc(userId)}','${isHuman ? 'AI' : '真人'}')">${isHuman ? '🤖 切回 AI' : '🙋 改由我回'}</button>
+      </div>
+      <div class="msgs" id="msgs">${d.msgs.map(m => {
+        const cls = m.role === '客人' ? 'c' : m.role === '老闆' ? 'boss' : 'ai';
+        return `<div class="who ${cls === 'c' ? '' : 'r'}">${esc(m.role === 'AI' ? '韋德小幫手' : m.role)}</div>
+          <div class="bub ${cls}">${esc(m.text)}<small>${esc(m.time)}</small></div>`;
+      }).join('') || '<div class="empty">沒有對話紀錄</div>'}</div>
+      <div class="send">
+        <textarea id="sendText" placeholder="直接回覆客人…"></textarea>
+        <button class="btn pri" id="sendBtn" onclick="sendMsg('${esc(userId)}')">送出</button>
+      </div>
+      <div class="hint">後台回覆會用掉 1 則推播額度${left != null ? '（本月剩 ' + left + ' 則）' : ''}，送出後這位客人會自動改成真人模式。不想用額度的話，請到 LINE 官方帳號 App 回覆。</div>
+    </div>`;
+  const box = $('#msgs'); box.scrollTop = box.scrollHeight;
+}
+
+async function setMode(userId, mode){
+  await api('ai_admin_mode', { userId, mode });
+  toast(mode === 'AI' ? '已切回 AI' : '已改由你回覆，AI 暫停');
+  openChat(userId);
+}
+
+async function sendMsg(userId){
+  const text = $('#sendText').value.trim();
+  if (!text) return;
+  $('#sendBtn').disabled = true;
+  try { await api('ai_admin_send', { userId, text }); toast('已送出'); openChat(userId); }
+  catch(e){ toast(e.message); $('#sendBtn').disabled = false; }
+}
+
+/* ====== 待補 ====== */
+async function renderTodo(){
+  const d = await api('ai_admin_todos');
+  setBadge('#bdTodo', d.open.length);
+  const item = (t, done) => `<div class="todo">
+      <div class="q">${esc(t.q)}</div>
+      <div class="meta">${esc(t.name || '')}・${esc(t.time)}</div>
+      <label class="field"><span>${done ? '已補的答案' : '補上答案（AI 下次就會這樣回答）'}</span>
+        <textarea id="ans${t.row}" placeholder="例如：週六 15:00–20:00">${esc(t.answer || '')}</textarea></label>
+      <div class="row-acts">
+        <button class="btn sm danger" onclick="delTodo(${t.row})">刪除</button>
+        <button class="btn sm pri" onclick="saveTodo(${t.row})">儲存</button>
+      </div></div>`;
+  $('#main').innerHTML = `
+    <h3 class="sec" style="margin-top:4px">還沒補答案（${d.open.length}）</h3>
+    <div class="card">${d.open.map(t => item(t, false)).join('') || '<div class="empty">🎉 目前沒有待補問題</div>'}</div>
+    ${d.done.length ? `<h3 class="sec">已補答案（最近 ${d.done.length} 題）</h3><div class="card">${d.done.map(t => item(t, true)).join('')}</div>` : ''}`;
+}
+async function saveTodo(row){
+  await api('ai_admin_answer', { row, answer: $('#ans' + row).value });
+  toast('已儲存，AI 2 分鐘內會開始使用'); refresh();
+}
+async function delTodo(row){
+  if (!confirm('確定刪除這一題？')) return;
+  await api('ai_admin_todo_delete', { row }); toast('已刪除'); refresh();
+}
+
+/* ====== 知識庫 ====== */
+let KB = [];
+async function renderKb(){
+  const d = await api('ai_admin_kb');
+  KB = d.list;
+  drawKb('');
+}
+function drawKb(q){
+  const kw = q.trim().toLowerCase();
+  const list = KB.filter(x => !kw || (x.cat + x.q + x.a).toLowerCase().includes(kw));
+  const cats = [...new Set(list.map(x => x.cat || '一般'))];
+  $('#main').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="search" placeholder="🔍 搜尋知識庫" value="${esc(q)}" oninput="drawKbKeep(this.value)">
+      <button class="btn pri" style="white-space:nowrap;margin-bottom:6px" onclick="editKb(null)">＋ 新增</button>
+    </div>
+    <div class="hint" style="margin:0 4px 6px">AI 只會根據這裡的資料回答。修改後約 2 分鐘生效。</div>
+    <div id="kbEdit"></div>
+    ${cats.map(c => `<div class="kb-cat">${esc(c)}</div>` + list.filter(x => (x.cat || '一般') === c).map(x => `
+      <div class="card kb ${x.off ? 'off' : ''}" onclick="editKb(${x.row})">
+        <div class="t">${esc(x.q || '(無標題)')} ${x.off ? '<span class="chip">停用</span>' : ''}</div>
+        <div class="a">${esc(x.a)}</div></div>`).join('')).join('') || '<div class="card empty">找不到資料</div>'}`;
+}
+let kbT;
+function drawKbKeep(v){ clearTimeout(kbT); kbT = setTimeout(() => { drawKb(v); const s = $('.search'); s.focus(); s.setSelectionRange(v.length, v.length); }, 250); }
+function editKb(row){
+  const x = row ? KB.find(k => k.row === row) : { row: null, cat: '', q: '', a: '', off: false };
+  const cats = [...new Set(KB.map(k => k.cat).filter(Boolean))];
+  $('#kbEdit').innerHTML = `<div class="card" style="margin:10px 0;outline:2px solid var(--green)">
+    <b>${row ? '編輯' : '新增'}資料</b>
+    <label class="field"><span>分類</span><input id="kCat" list="kCats" value="${esc(x.cat)}" placeholder="例如：輪胎、大保養、店家">
+      <datalist id="kCats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+    <label class="field"><span>問題／主題</span><input id="kQ" value="${esc(x.q)}" placeholder="例如：14 吋輪胎價格"></label>
+    <label class="field"><span>答案（AI 會照這個回答）</span><textarea id="kA" style="min-height:130px">${esc(x.a)}</textarea></label>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="kOff" ${x.off ? 'checked' : ''}> 先停用（AI 暫時不看這筆）</label>
+    <div class="row-acts">
+      ${row ? `<button class="btn sm danger" onclick="delKb(${row})">刪除</button>` : ''}
+      <button class="btn sm" onclick="$('#kbEdit').innerHTML=''">取消</button>
+      <button class="btn sm pri" onclick="saveKb(${row || 'null'})">儲存</button>
+    </div></div>`;
+  $('#kbEdit').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function saveKb(row){
+  try {
+    await api('ai_admin_kb_save', { row, cat: $('#kCat').value, q: $('#kQ').value, a: $('#kA').value, off: $('#kOff').checked });
+    toast('已儲存'); refresh();
+  } catch(e){ toast(e.message); }
+}
+async function delKb(row){
+  if (!confirm('確定刪除這筆資料？')) return;
+  await api('ai_admin_kb_delete', { row }); toast('已刪除'); refresh();
+}
+
+/* ====== 示範資料（網址加 ?demo 可預覽） ====== */
+function demoApi(type){
+  const wait = v => new Promise(r => setTimeout(() => r(Object.assign({ ok: true }, v)), 150));
+  if (type === 'ai_admin_overview') return wait({ now:'11月17日 星期二', hour:14, status:'test',
+    humans:[{ userId:'U1', name:'小韋', since:'2026-11-17 13:20' }], todoCount:2, customers:18, todayIn:23, todayAi:19, todayUsers:6,
+    booking:{ total:3, open:true, count:{ '已預約':2, '已完成':1 }, list:[
+      { time:'留車', service:'大保養', name:'王先生', car:'JET SL／ABC-1234', status:'已預約' },
+      { time:'14:30', service:'換機油', name:'陳小姐', car:'NRR-9331', status:'已完成' },
+      { time:'16:00', service:'換輪胎', name:'', car:'', status:'已預約' } ] },
+    quotaWade:{ used:9, limit:200 }, quotaMain:{ used:199, limit:200 }, model:'gemini-3.5-flash-lite' });
+  if (type === 'ai_admin_conversations') return wait({ list:[
+    { userId:'U1', name:'小韋', last:'週六幾點關門', lastRole:'客人', lastTime:'11/17 13:20', count:12, mode:'真人', waiting:true },
+    { userId:'U2', name:'阿德', last:'12 吋輪胎價格在 NT$1400～2800 之間…', lastRole:'AI', lastTime:'11/17 12:05', count:4, mode:'AI' } ] });
+  if (type === 'ai_admin_chat') return wait({ userId:'U1', name:'小韋', mode:'真人', quota:{ used:9, limit:200 }, msgs:[
+    { role:'客人', text:'FORCE 一代裝 FF2+ 多少', time:'11/17 13:18' },
+    { role:'AI', text:'FORCE 1.0（一代）安裝 GJMS FF2 升級 FF2+ 完工價是 23000 元喔！', time:'11/17 13:18' },
+    { role:'客人', text:'可以算便宜一點嗎', time:'11/17 13:20' },
+    { role:'老闆', text:'可以來店裡聊聊喔～', time:'11/17 13:25' } ] });
+  if (type === 'ai_admin_todos') return wait({ open:[ { row:5, q:'有賣安全帽嗎', name:'阿德', time:'11/17 12:10', answer:'' }, { row:6, q:'可以刷卡嗎', name:'小韋', time:'11/17 11:00', answer:'' } ],
+    done:[ { row:2, q:'週六幾點關門', name:'小韋', time:'11/17 00:18', answer:'週六 15:00–20:00' } ] });
+  if (type === 'ai_admin_kb') return wait({ list:[
+    { row:2, cat:'店家', q:'營業時間', a:'週一到週五 13:00–22:00；週六 15:00–20:00；週日公休', off:false },
+    { row:3, cat:'輪胎', q:'12 吋輪胎價格', a:'12 吋輪胎 NT$1400～2800…', off:false },
+    { row:4, cat:'前叉', q:'前叉套餐活動', a:'GJMS TCD2000+ 大全配 $27000…', off:true } ] });
+  return wait({});
+}
+
+/* ====== 啟動 ====== */
+if (DEMO || PW) showApp(); else $('#loginView').classList.remove('hide');
+</script>
+</body>
+</html>
