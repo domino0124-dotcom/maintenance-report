@@ -1348,8 +1348,32 @@ async function pkSumAlert() {
   $('#view').prepend(el);
 }
 
+// 總覽最上面：AI 客服有人等你回、或有待補問題就顯示提醒（用 AI 後台登入過的密碼，沒登入過就不顯示）
+async function aiSumAlert() {
+  let pw = ''; try { pw = localStorage.getItem('wade_ai_admin_pw') || ''; } catch (e) {}
+  if (!pw) return;
+  let d;
+  try {
+    d = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'ai_admin_overview', pw }) }).then(r => r.json());
+  } catch (e) { return; }
+  if (!d || !d.ok || tab !== 'sum' || !$('#view') || $('#aiAlert')) return;
+  const n = d.humans.length, q = d.todoCount;
+  if (!n && !q) return;
+  const el = document.createElement('div');
+  el.className = 'card alert full pkalert'; el.id = 'aiAlert';
+  el.innerHTML = `<div style="flex:1"><div style="font-weight:800">🤖 AI 客服</div>
+    <div class="hint">${n ? `<b style="color:var(--red);font-size:13px">${n} 位客人等你回覆</b>` : ''}${n && q ? '・' : ''}${q ? `${q} 題 AI 答不出來待補` : ''}</div></div>
+    <button class="btn ghost sm">查看</button>`;
+  el.onclick = () => { location.href = AI_ADMIN + (n ? '#inbox' : '#todo'); };
+  $('#view').prepend(el);
+}
+
 /* ================= 更多：集點＋所有後台工具 ================= */
+const AI_ADMIN = 'https://domino0124-dotcom.github.io/maintenance-report/ai-admin.html';
 const MORE_SECTIONS = [
+  { title: 'AI 客服', items: [
+    { icon: '🤖', name: 'AI 客服後台', note: '對話・轉真人・待補問題・知識庫', url: AI_ADMIN, hot: true } ] },
   { title: '店務系統', items: [
     { icon: '⚡', name: '快速補登', note: '維修／銷售補登', url: 'http://wadegp.magicyuki.com:8080/M_P_invoice/invoice_fast.html', hot: true },
     { icon: '🖥️', name: '完整系統', note: '店務系統首頁', url: 'http://wadegp.magicyuki.com:8080/' } ] },
@@ -1423,7 +1447,7 @@ function go(t) {
   $('#view').className = (t === 'sum' || t === 'shopee' || t === 'more') ? 'grid' : (t === 'tx' || t === 'bill') ? 'cols' : '';
   $('#month').style.visibility = t === 'more' ? 'hidden' : 'visible';
   const p = ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee, more: viewMore })[t]();
-  if (t === 'sum') Promise.resolve(p).then(pkSumAlert);
+  if (t === 'sum') Promise.resolve(p).then(pkSumAlert).then(aiSumAlert);
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => go(b.dataset.tab));
