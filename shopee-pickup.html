@@ -37,6 +37,7 @@
   .tab { flex: 1; background: none; border: 0; color: rgba(255,255,255,.75); font-size: 15px; font-weight: 600;
     padding: 10px 0 12px; border-bottom: 3px solid transparent; }
   .tab.on { color: #fff; border-color: #fff; }
+  .tab b.red { background: #7f1d1d; color: #fff; }
   .tab b { display: inline-block; min-width: 22px; padding: 0 6px; margin-left: 4px; border-radius: 999px;
     background: #fff; color: var(--brand); font-size: 12px; line-height: 20px; }
   main { padding: 12px 16px calc(90px + env(safe-area-inset-bottom)); max-width: 640px; margin: 0 auto; }
@@ -85,8 +86,9 @@
     <button class="refresh" id="refresh">重新整理</button>
   </div>
   <div class="tabs">
-    <button class="tab on" data-tab="pending">待取 <b id="cntP">0</b></button>
-    <button class="tab" data-tab="done">已拿（最近）</button>
+    <button class="tab on" data-tab="pending">未取 <b id="cntP">0</b></button>
+    <button class="tab" data-tab="late">過期 <b id="cntL" class="red">0</b></button>
+    <button class="tab" data-tab="done">已取</button>
   </div>
 </header>
 
@@ -147,7 +149,7 @@
 
   function badge(it) {
     if (it.status === '已取件') return '<span class="badge">已拿</span>';
-    if (it.store && it.store.indexOf('物流中心') !== -1) return '<span class="badge late">退回物流中心・找客服</span>';
+    if (it.status === '逾期未取') return '<span class="badge late">' + (it.deadline ? '找客服期限 ' + it.deadline.slice(5).replace('-', '/') : '請找蝦皮客服') + '</span>';
     if (it.left == null) return '<span class="badge">無期限</span>';
     if (it.left < 0) return '<span class="badge late">過期 ' + (-it.left) + ' 天</span>';
     if (it.left === 0) return '<span class="badge today">今天到期</span>';
@@ -159,32 +161,36 @@
     const isDone = it.status === '已取件';
     return '<div class="card" id="c' + esc(it.id) + '">' +
       '<div class="row1"><div class="shop">' + esc(it.shop || '未填賣場') + '<span class="id">#' + esc(it.id) + '</span></div>' + badge(it) + '</div>' +
-      '<div class="code"><span class="num">' + esc(it.code || (it.store && it.store.indexOf('物流中心') !== -1 ? '找客服' : '帶證件')) + '</span>' +
-        (it.code ? '<button class="copy" data-copy="' + esc(it.code) + '">複製</button>' : '') + '</div>' +
+      '<div class="code"><span class="num">' + esc(it.status === '逾期未取' ? '找客服' : (it.code || '帶證件')) + '</span>' +
+        (it.code && it.status !== '逾期未取' ? '<button class="copy" data-copy="' + esc(it.code) + '">複製</button>' : '') + '</div>' +
       '<div class="meta">' +
         '<div>📍 ' + esc(it.store || '未填門市') + '</div>' +
-        (it.deadline ? '<div>⏰ 期限 ' + esc(it.deadline) + '</div>' : '') +
+        (it.deadline ? '<div>⏰ ' + (it.status === '逾期未取' ? '找客服期限 ' : '取件期限 ') + esc(it.deadline) + '</div>' : '') +
         (it.order ? '<div>🧾 ' + esc(it.order) + '</div>' : '') +
         (it.phone ? '<div>📞 ' + esc(it.phone) + '</div>' : '') +
       '</div>' +
       '<div class="act">' + (isDone
-        ? '<button class="btn undo" data-act="undo" data-id="' + esc(it.id) + '">改回沒拿</button>'
-        : '<button class="btn done" data-act="done" data-id="' + esc(it.id) + '">' + (it.store && it.store.indexOf('物流中心') !== -1 ? '✓ 已處理' : '✓ 已拿') + '</button>') +
+        ? '<button class="btn undo" data-act="undo" data-id="' + esc(it.id) + '">改回未處理</button>'
+        : '<button class="btn done" data-act="done" data-id="' + esc(it.id) + '">' + (it.status === '逾期未取' ? '✓ 客服已處理' : '✓ 已拿') + '</button>') +
       '</div></div>';
   }
 
   function render() {
-    $('cntP').textContent = data.pending.length;
+    const isLate = (it) => it.status === '逾期未取';
+    const pend = data.pending.filter((it) => !isLate(it));
+    const late = data.pending.filter(isLate);
+    $('cntP').textContent = pend.length;
+    $('cntL').textContent = late.length;
+    $('cntL').style.display = late.length ? '' : 'none';
     document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    const list = (tab === 'pending' ? data.pending : data.done).filter((it) => {
+    const list = (tab === 'pending' ? pend : tab === 'late' ? late : data.done).filter((it) => {
       if (!query) return true;
       return [it.shop, it.code, it.store, it.order, it.id].join(' ').toLowerCase().includes(query.toLowerCase());
     });
     let html = '<input class="search" id="q" placeholder="搜尋賣場 / 驗證碼 / 訂單" value="' + esc(query) + '">';
     if (!list.length) {
-      html += tab === 'pending'
-        ? '<div class="empty"><div class="big">🎉</div>' + (query ? '找不到符合的' : '全部都拿了') + '</div>'
-        : '<div class="empty"><div class="big">📭</div>' + (query ? '找不到符合的' : '還沒有已拿的紀錄') + '</div>';
+      const msg = { pending: ['🎉', '全部都拿了'], late: ['👍', '沒有逾期的'], done: ['📭', '還沒有已取的紀錄'] }[tab];
+      html += '<div class="empty"><div class="big">' + msg[0] + '</div>' + (query ? '找不到符合的' : msg[1]) + '</div>';
     } else {
       html += list.map(card).join('');
     }
@@ -219,8 +225,8 @@
       if (action === 'done') to.unshift(it);
       else { to.push(it); to.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); }
       setTimeout(render, 220);
-      if (action === 'done') toast('已標記 #' + id + ' 已拿', () => setStatus(id, 'undo'));
-      else toast('#' + id + ' 已改回沒拿');
+      if (action === 'done') toast('#' + id + ' 已處理', () => setStatus(id, 'undo'));
+      else toast('#' + id + ' 已改回未處理');
     } catch (e) {
       if (el) { el.classList.remove('gone'); el.querySelectorAll('button').forEach((b) => (b.disabled = false)); }
       toast('失敗：' + e.message);
