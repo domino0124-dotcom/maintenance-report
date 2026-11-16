@@ -1051,8 +1051,9 @@ const PkScan = (function () {
       #pkscan .bar{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
       #pkscan .bar b{font-size:17px}
       #pkscan .x{background:#ffffff1f;border:0;color:#fff;border-radius:999px;padding:8px 16px;font-size:15px;font-weight:700}
-      #pkscan #pkReader{width:100%;max-width:520px;margin:0 auto;background:#000;height:30vh;min-height:170px;overflow:hidden;position:relative;flex:none}
-      #pkscan #pkReader video{width:100% !important;height:30vh !important;min-height:170px;object-fit:cover}
+      #pkscan .cam{width:100%;max-width:520px;margin:0 auto;background:#000;height:34vh;min-height:190px;overflow:hidden;position:relative;flex:none}
+      #pkscan #pkReader{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%)}
+      #pkscan #pkReader video{display:block;width:100% !important;height:auto !important}
       #pkscan #pkReader #qr-shaded-region{display:none}
       #pkscan #pkReader img{display:none}
       #pkscan .tip{text-align:center;color:#aab;font-size:12px;padding:6px 14px 4px;flex:none}
@@ -1145,9 +1146,9 @@ const PkScan = (function () {
     css();
     const box = document.createElement('div'); box.id = 'pkscan';
     box.innerHTML = `
-      <div class="bar"><b>📷 掃描對貨 <small style="font-weight:400;color:#889;font-size:12px">v3</small></b><button class="x" id="pkClose">完成</button></div>
-      <div id="pkReader"></div>
-      <div class="tip">鏡頭對準標籤中間那條<b>長條碼</b>，條碼要橫的、整條都入鏡，距離約 15～20 公分</div>
+      <div class="bar"><b>📷 掃描對貨 <small style="font-weight:400;color:#889;font-size:12px">v4</small></b><button class="x" id="pkClose">完成</button></div>
+      <div class="cam" id="pkCam"><div id="pkReader"></div></div>
+      <div class="tip">把標籤中間的<b>長條碼</b>放進橘框（橫的、整條入框），距離約 15～20 公分</div>
       <div class="manual"><input id="pkMan" placeholder="掃不到？輸入寄件編號後 4～6 碼" autocomplete="off"><button id="pkManGo">對</button></div>
       <div class="sum" id="pkSum"></div>
       <div class="log"><div id="pkLog"></div><div class="left" id="pkLeft"></div></div>`;
@@ -1163,13 +1164,15 @@ const PkScan = (function () {
       const F = window.Html5QrcodeSupportedFormats;
       qr = new window.Html5Qrcode('pkReader', { formatsToSupport: [F.CODE_128, F.QR_CODE, F.CODE_39, F.EAN_13], verbose: false,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
-      // 不限制掃描範圍：整個畫面都會找條碼；用比較高的解析度，細條碼也讀得到
-      await qr.start({ facingMode: 'environment' }, {
-        fps: 10,
-        videoConstraints: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-      }, (t) => handle(t), () => {});
+      const cam = document.getElementById('pkCam');
+      const bw = Math.round(Math.min(cam.clientWidth - 24, 480));
+      const bh = Math.round(bw * 0.45);
+      await qr.start({ facingMode: 'environment' }, { fps: 12, qrbox: { width: bw, height: bh } }, (t) => handle(t), () => {});
+      const aim = document.createElement('div'); aim.className = 'aim';
+      aim.style.cssText = 'left:50%;right:auto;top:50%;width:' + bw + 'px;height:' + bh + 'px;transform:translate(-50%,-50%)';
+      cam.appendChild(aim);
     } catch (e) {
-      document.getElementById('pkReader').innerHTML = '<div style="padding:30px 16px;text-align:center;color:#f5b971;font-size:14px">相機開不起來：' + esc(e.message || e) +
+      document.getElementById('pkCam').innerHTML = '<div style="padding:30px 16px;text-align:center;color:#f5b971;font-size:14px">相機開不起來：' + esc(e.message || e) +
         '<br><br>請允許相機權限；LINE 裡打不開的話，點右上角「⋯」→ 用預設瀏覽器開啟。<br>也可以直接在下面輸入寄件編號後幾碼。</div>';
     }
   }
