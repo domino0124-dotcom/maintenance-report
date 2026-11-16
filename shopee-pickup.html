@@ -183,7 +183,16 @@ const PkScan = (function () {
     last = { t: text, at: now };
     const it = find(text);
     if (it && it.multi) { addLog('no', '後幾碼對到好幾件，請多輸入幾碼：<small>' + it.multi.map((x) => '#' + esc(x.id) + ' ' + esc(x.shop)).join('、') + '</small>'); return; }
-    if (!it) { addLog('no', '⚠️ 清單沒有這件<small>' + esc(text.slice(0, 40)) + '<br>可能是買家退貨還沒同步、或別人寄給你的包裹</small>'); return; }
+    if (!it) {
+      const t = norm(text);
+      if (/^TW[0-9A-Z]{8,}$/.test(t) && opts.remember) {
+        try { await opts.remember(t); } catch (e) {}
+        addLog('dup', '📝 清單沒有這件，已記下<small>' + esc(t) + '<br>之後同步到也會自動算已拿（別人寄給你的包裹不用管）</small>');
+      } else {
+        addLog('no', '⚠️ 清單沒有這件<small>' + esc(text.slice(0, 40)) + '</small>');
+      }
+      return;
+    }
     if (it.status === '已取件' || matchedIds.indexOf(it.id) !== -1) { addLog('dup', '已經標過了：#' + esc(it.id) + ' ' + esc(it.shop)); return; }
     try {
       await opts.setStatus(it.id, 'done');
@@ -402,6 +411,7 @@ const PkScan = (function () {
   $('scanBtn').onclick = () => PkScan.open({
     getItems: () => data.pending.concat(data.done),
     setStatus: mark,
+    remember: (t) => api({ action: 'picked_track', track: t }),
     onClose: (n) => { data.pending.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); render(); if (n) toast('這次對到 ' + n + ' 件'); }
   });
 
