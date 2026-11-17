@@ -309,7 +309,54 @@ function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('sho
 function lsGet(k, d){ try { return localStorage.getItem(k) ?? d; } catch { return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
 
+/* ===== 加速：讀資料先秀上次的（存在這支手機），背景再更新；刪除／付款先改畫面，背景再存 ===== */
+const READS = { init: 1, summary: 1, listTx: 1, listBills: 1, shopeeTrend: 1 };
+const LM = {};          // key -> { t: 時間, d: 資料 }
+let LPEND = 0, LQ = Promise.resolve();
+function lmGet(k) { if (LM[k]) return LM[k]; try { const v = JSON.parse(localStorage.getItem('lg_' + k) || 'null'); if (v) LM[k] = v; return v; } catch (e) { return null; } }
+function lmSet(k, d) { LM[k] = { t: Date.now(), d }; try { localStorage.setItem('lg_' + k, JSON.stringify(LM[k])); } catch (e) {} }
+function lmStaleAll() { Object.values(LM).forEach(v => v.t = 0); }
+// 改這支手機記住的某類資料（例如刪掉一筆），畫面才不會先跳回舊的
+function lmEdit(action, fn) {
+  Object.keys(LM).filter(k => k.indexOf(action + '|') === 0).forEach(k => { try { fn(LM[k].d); } catch (e) {} LM[k].t = 0; });
+}
 async function api(action, extra = {}) {
+  if (!READS[action]) return apiNet(action, extra);
+  const k = action + '|' + JSON.stringify(extra), m = lmGet(k);
+  if (m && Date.now() - m.t < 5000) return m.d;               // 剛更新過
+  if (m) {                                                    // 先回上次的，背景更新
+    apiNet(action, extra).then(d => {
+      const changed = JSON.stringify(d) !== JSON.stringify(m.d);
+      if (LPEND) return;                                      // 還有東西在背景存，等存完再說
+      lmSet(k, d);
+      if (changed) lgRedraw(action);
+    }).catch(() => {});
+    return m.d;
+  }
+  const d = await apiNet(action, extra); lmSet(k, d); return d;
+}
+// 背景更新到新資料時，只重畫那一塊；正在打字就不打擾
+function lgRedraw(action) {
+  if (action === 'init') { const m = lmGet('init|{}'); if (m) cfg = m.d; return; }
+  if (action === 'listBills' && $('#billLists')) {
+    if (document.querySelector('.payrow[style*="flex"]') || billSel.size) return;   // 正在選付款方式／勾選中
+    return loadBills();
+  }
+  if (action === 'listTx' && $('#txList')) return loadTxList();
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;      // 正在打字不打擾
+  if (action === 'summary' && tab === 'sum') return Promise.resolve(viewSum()).then(pkSumAlert).then(aiSumAlert);
+  if (action === 'shopeeTrend' && tab === 'shopee' && typeof loadDash === 'function' && document.querySelector('#view .card')) return loadDash();
+}
+// 寫入：依序在背景送，失敗會提示並重抓；全部送完再安靜更新畫面
+function apiBg(action, extra, after) {
+  LPEND++;
+  LQ = LQ.then(() => apiNet(action, extra)).catch(e => { toast('⚠️ 沒存成功：' + e.message); })
+    .finally(() => { if (--LPEND === 0) { lmStaleAll(); after && after(); } });
+  return LQ;
+}
+async function apiNet(action, extra = {}) {
+  if (!READS[action]) lmStaleAll();
   const res = await fetch(GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -421,7 +468,8 @@ async function viewDaily() {
   bindMode();
   const map = {};   // date -> { amount, detail }
   try {
-    const j = await api('listTx', { month: m });
+    const j = await apiNet('listTx', { month: m });
+    lmSet('listTx|' + JSON.stringify({ month: m }), j);
     j.items.forEach(t => {
       if (t.type === '收入' && t.note.indexOf('每日營收') === 0)
         map[t.date] = { amount: t.amount, detail: (t.note.split('｜')[1] || '') };
@@ -518,7 +566,9 @@ async function viewSingle() {
     const btn = $('#saveTx'); btn.disabled = true; btn.textContent = '儲存中…';
     try {
       const cat = form.custom ? ($('#catCustom').value.trim() || form.cat) : form.cat;
-      await api('addTx', { tx: { type: form.type, cat, method: form.method, amount: $('#amt').value, date: $('#date').value, note: $('#note').value } });
+      const ntx = { type: form.type, cat, method: form.method, amount: $('#amt').value, date: $('#date').value, note: $('#note').value };
+      await api('addTx', { tx: ntx });
+      if (ntx.date.slice(0, 7) === month()) lmEdit('listTx', d => { d.items.unshift(Object.assign({}, ntx, { id: '', amount: Number(ntx.amount) || 0 })); });
       toast(`已記：${form.type}・${cat} ${money(Number($('#amt').value))}`);
       const list = form.type === '收入' ? cfg.incomeCats : cfg.expenseCats;
       if (form.custom && cat && !list.includes(cat)) { list.push(cat); form.cat = cat; form.custom = false; viewTx(); return; }
@@ -549,7 +599,11 @@ async function loadTxList() {
         </div>`).join('')}` : '<div class="hint">本月還沒有紀錄</div>';
     document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
       if (!confirm('確定刪除這筆？')) return;
-      try { await api('delTx', { id: b.dataset.del }); toast('已刪除'); loadTxList(); } catch (e) { toast(e.message); }
+      const id = b.dataset.del;
+      if (!id) return toast('還在儲存，請稍等一下');
+      lmEdit('listTx', d => { d.items = d.items.filter(t => t.id !== id); });
+      b.closest('.item').remove(); toast('已刪除');
+      apiBg('delTx', { id }, loadTxList);
     });
   } catch (e) { $('#txList').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
@@ -724,6 +778,16 @@ function billItem(b, selectable) {
   </div>`;
 }
 
+function billMemo(ids, fn) {
+  ids = [].concat(ids);
+  lmEdit('listBills', d => ['unpaid', 'ofMonth', 'recent'].forEach(k => {
+    d[k] = (d[k] || []).map(b => ids.includes(b.id) ? fn(Object.assign({}, b)) : b).filter(Boolean);
+  }));
+}
+function billPaidLocal(ids, method, payDate) {
+  billMemo(ids, b => Object.assign(b, { status: '已付', method, payDate: payDate || today() }));
+  lmEdit('listBills', d => { d.unpaid = d.unpaid.filter(b => ![].concat(ids).includes(b.id)); });
+}
 async function loadBills() {
   try {
     const j = await api('listBills', { month: month() });
@@ -765,11 +829,10 @@ async function loadBills() {
     });
     if ($('#batchPay')) $('#batchPay').onclick = async () => {
       const n = billSel.size; if (!n) return;
-      const btn = $('#batchPay'); btn.disabled = true; btn.textContent = '處理中…';
-      try {
-        await api('payBills', { ids: [...billSel], method: batchWay, payDate: $('#batchDate').value });
-        toast(`已付款 ${n} 筆（${batchWay}）`); billSel.clear(); loadBills();
-      } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '勾選的付款'; }
+      const ids = [...billSel], payDate = $('#batchDate').value;
+      billPaidLocal(ids, batchWay, payDate);
+      toast(`已付款 ${n} 筆（${batchWay}）`); billSel.clear(); loadBills();
+      apiBg('payBills', { ids, method: batchWay, payDate }, loadBills);
     };
     updSel();
 
@@ -780,17 +843,26 @@ async function loadBills() {
     });
     document.querySelectorAll('[data-paycancel]').forEach(b => b.onclick = () => { document.querySelector(`[data-payrow="${b.dataset.paycancel}"]`).style.display = 'none'; });
     document.querySelectorAll('[data-payway]').forEach(b => b.onclick = async () => {
-      b.disabled = true;
-      try { await api('payBill', { id: b.dataset.for, method: b.dataset.payway }); toast(`已付款（${b.dataset.payway}）`); loadBills(); }
-      catch (e) { toast(e.message); b.disabled = false; }
+      const id = b.dataset.for, method = b.dataset.payway;
+      billPaidLocal(id, method);
+      toast(`已付款（${method}）`); loadBills();
+      apiBg('payBill', { id, method }, loadBills);
     });
     document.querySelectorAll('[data-unpay]').forEach(b => b.onclick = async () => {
       if (!confirm('改回未付？')) return;
-      try { await api('unpayBill', { id: b.dataset.unpay }); loadBills(); } catch (e) { toast(e.message); }
+      const id = b.dataset.unpay;
+      let it = null;
+      billMemo(id, x => (it = Object.assign(x, { status: '未付', payDate: '', method: '' })));
+      lmEdit('listBills', d => { if (it && !d.unpaid.some(x => x.id === id)) d.unpaid.push(it); });
+      toast('已改回未付'); loadBills();
+      apiBg('unpayBill', { id }, loadBills);
     });
     document.querySelectorAll('[data-bdel]').forEach(b => b.onclick = async () => {
       if (!confirm('確定刪除這筆帳款？')) return;
-      try { await api('delBill', { id: b.dataset.bdel }); toast('已刪除'); loadBills(); } catch (e) { toast(e.message); }
+      const id = b.dataset.bdel;
+      billMemo(id, () => null);
+      toast('已刪除'); loadBills();
+      apiBg('delBill', { id }, loadBills);
     });
   } catch (e) { $('#billLists').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
@@ -1204,7 +1276,27 @@ async function pkApi(body) {
   if (!j.ok) throw new Error(j.error || '發生錯誤');
   return j;
 }
-async function pkLoad() { pkData = await pkApi({ action: 'list' }); pkBadge(); return pkData; }
+async function pkLoad() {
+  pkData = await pkApi({ action: 'list' }); pkData._t = Date.now();
+  try { localStorage.setItem('pk_cache', JSON.stringify(pkData)); } catch (e) {}
+  pkBadge(); return pkData;
+}
+// 先用這支手機記住的取件清單，背景再更新
+if (pkKey) { try { const c = JSON.parse(localStorage.getItem('pk_cache') || 'null'); if (c && c.pending) { pkData = c; pkData._t = 0; } } catch (e) {} }
+let pkPend = 0;
+function pkRevalidate() {
+  if (!pkData || Date.now() - (pkData._t || 0) < 20000 || pkPend) return;
+  pkData._t = Date.now();
+  const before = JSON.stringify([pkData.pending, pkData.done]);
+  pkApi({ action: 'list' }).then(d => {
+    if (pkPend) return;
+    d._t = Date.now(); pkData = d;
+    try { localStorage.setItem('pk_cache', JSON.stringify(d)); } catch (e) {}
+    pkBadge();
+    const a = document.activeElement;
+    if (JSON.stringify([d.pending, d.done]) !== before && tab === 'shopee' && $('#pkBox') && !(a && a.id === 'pkQ') && !document.getElementById('pkscan')) viewShopee();
+  }).catch(() => {});
+}
 function pkSplit() {
   const late = pkData.pending.filter(x => x.status === '逾期未取');
   return { pending: pkData.pending.filter(x => x.status !== '逾期未取'), late, done: pkData.done };
@@ -1273,6 +1365,7 @@ async function viewPickup() {
     if (tab === 'shopee') return viewShopee();   // 重畫上方「取件（N）」
     return;
   }
+  pkRevalidate();
   const g = pkSplit();
   const list = g[pkTab].filter(it => !pkQuery ||
     [it.shop, it.code, it.store, it.order, it.track, it.id].join(' ').toLowerCase().includes(pkQuery.toLowerCase()));
@@ -1314,9 +1407,13 @@ async function viewPickup() {
   box.querySelectorAll('[data-pk]').forEach(b => b.onclick = () => pkSet(b.dataset.id, b.dataset.pk, b));
 }
 async function pkSet(id, action, btn) {
-  if (btn) btn.disabled = true;
-  try {
-    const res = await pkApi({ action, id });
+  // 先改畫面，背景再存；沒存成功會提示並重抓
+  const st = action === 'done' ? '已取件' : '待取件';
+  pkPend++;
+  pkApi({ action, id }).catch(e => { toast('⚠️ #' + id + ' 沒存成功：' + e.message); pkData._t = 0; })
+    .finally(() => { if (--pkPend === 0) { if (pkData) pkData._t = 0; try { localStorage.setItem('pk_cache', JSON.stringify(pkData)); } catch (e) {} } });
+  const res = { status: st };
+  {
     const all = [...pkData.pending, ...pkData.done];
     const it = all.find(x => x.id === id);
     pkData.pending = pkData.pending.filter(x => x.id !== id);
@@ -1329,7 +1426,7 @@ async function pkSet(id, action, btn) {
     pkBadge();
     toast(action === 'done' ? `#${id} 已處理` : `#${id} 已改回未處理`);
     viewShopee();
-  } catch (e) { toast(e.message); if (btn) btn.disabled = false; }
+  }
 }
 // 總覽最上面：有待取／過期就顯示提醒
 async function pkSumAlert() {

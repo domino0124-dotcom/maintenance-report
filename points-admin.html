@@ -247,6 +247,8 @@ async function loadList(manual) {
   if (j.firstBind) toast('已將你設為集點管理員');
   list = j.members; meta = j.meta; stats = j.stats; recent = j.recent || [];
   try { localStorage.setItem('ptAdminCache', JSON.stringify({ list, meta, stats, recent })); } catch (e) {}
+  const a = document.activeElement;
+  if (!manual && a && (a.id === 'kw' || a.id === 'codeIn')) return;   // 正在打字不打擾
   renderMain();
   if (manual) toast('已更新');
 }
@@ -266,10 +268,16 @@ async function scan() {
 }
 
 /* ---------- 會員面板 ---------- */
+let memberVer = 0;
 async function openMember(code) {
-  $('#panel').innerHTML = '<div class="center">讀取中…</div>';
+  const v = ++memberVer;
+  // 加速：先用列表裡的資料馬上打開，紀錄背景再補上
+  const quick = list.find(m => m.code === code);
+  if (quick) { current = { member: Object.assign({ total: quick.total ?? '—' }, quick), logs: null }; renderMember(); }
+  else $('#panel').innerHTML = '<div class="center">讀取中…</div>';
   $('#sheet').classList.add('show');
   const j = await api('lookup', { code });
+  if (v !== memberVer) return;      // 已經換看別人，或已經按了加點，不要蓋掉
   if (!j.ok) { $('#panel').innerHTML = `<div class="err">${esc(j.error)}</div><button class="btn gray block" onclick="closeSheet()">關閉</button>`; return; }
   current = j; renderMember();
 }
@@ -306,7 +314,7 @@ function renderMember() {
 
     <div class="card">
       <div style="font-weight:600;margin-bottom:6px">紀錄</div>
-      ${logs.length ? logs.map(l => `<div class="log"><span>${esc(l.action)} ${l.delta > 0 ? '+' + l.delta : (l.delta < 0 ? l.delta : '')}${l.note ? ' · ' + esc(l.note) : ''}</span><span>${fmt(l.time)}</span></div>`).join('') : '<div class="hint">沒有紀錄</div>'}
+      ${current.logs === null ? '<div class="hint">紀錄讀取中…</div>' : logs.length ? logs.map(l => `<div class="log"><span>${esc(l.action)} ${l.delta > 0 ? '+' + l.delta : (l.delta < 0 ? l.delta : '')}${l.note ? ' · ' + esc(l.note) : ''}</span><span>${fmt(l.time)}</span></div>`).join('') : '<div class="hint">沒有紀錄</div>'}
     </div>
   `;
 
@@ -316,6 +324,7 @@ function renderMember() {
 }
 
 async function doAdd(force) {
+  memberVer++;
   const btn = $('#addBtn'); if (btn) { btn.disabled = true; btn.textContent = '處理中…'; }
   const j = await api('add', { code: current.member.code, force });
   if (j.needConfirm) {
@@ -330,6 +339,7 @@ async function doAdd(force) {
 
 async function doRedeem() {
   if (!confirm(`確認兌換「${meta.reward}」？\n點數會歸零。`)) return;
+  memberVer++;
   const j = await api('redeem', { code: current.member.code });
   if (!j.ok) { toast(j.error); return; }
   current = j; renderMember(); toast('兌換完成，點數已歸零'); loadList(false);
@@ -341,12 +351,13 @@ async function doAdjust() {
   const n = parseInt(d, 10);
   if (!n) { toast('請輸入數字，例如 -1 或 2'); return; }
   const note = prompt('原因（選填）', '') || '';
+  memberVer++;
   const j = await api('adjust', { code: current.member.code, delta: n, note });
   if (!j.ok) { toast(j.error); return; }
   current = j; renderMember(); toast(`已調整，目前 ${j.member.points} 點`); loadList(false);
 }
 
-function closeSheet() { $('#sheet').classList.remove('show'); current = null; }
+function closeSheet() { memberVer++; $('#sheet').classList.remove('show'); current = null; }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
 /* ---------- 啟動 ---------- */

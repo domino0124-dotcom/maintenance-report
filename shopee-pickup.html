@@ -292,19 +292,29 @@ const PkScan = (function () {
     $('pw').focus();
   }
 
+  // 加速：先秀這支手機記住的清單，背景再更新
+  let pend = 0;
+  function saveCache() { try { localStorage.setItem('pk_page_cache', JSON.stringify(data)); } catch (e) {} }
   async function load(fromLogin) {
     if (!key) return showLogin();
-    if (!fromLogin) $('main').innerHTML = '<div class="loading">載入中…</div>';
+    let cached = null;
+    if (!fromLogin) { try { cached = JSON.parse(localStorage.getItem('pk_page_cache') || 'null'); } catch (e) {} }
+    if (cached && cached.pending) { data = cached; $('hdr').hidden = false; render(); }
+    else if (!fromLogin) $('main').innerHTML = '<div class="loading">載入中…</div>';
     try {
       const res = await api({ action: 'list' });
       if (!res.ok) throw new Error(res.error || '讀取失敗');
       try { localStorage.setItem(KEY_STORE, key); } catch (e) {}
-      data = res;
+      if (pend) return;                                  // 有按鈕還在背景存，等存完再更新
+      const changed = !cached || JSON.stringify([res.pending, res.done]) !== JSON.stringify([cached.pending, cached.done]);
+      data = res; saveCache();
       $('hdr').hidden = false;
-      render();
+      const a = document.activeElement;
+      if (changed && !(a && a.id === 'q') && !document.getElementById('pkscan')) render();
     } catch (e) {
       if (e.message === 'DENY') { try { localStorage.removeItem(KEY_STORE); } catch (x) {} key = ''; return showLogin('密碼不對'); }
       if (fromLogin) { const er = $('err'); if (er) er.textContent = e.message; return; }
+      if (cached && cached.pending) { toast('更新失敗：' + e.message); return; }
       $('main').innerHTML = '<div class="empty"><div class="big">⚠️</div>' + esc(e.message) + '<br><br><button class="btn undo" onclick="location.reload()">再試一次</button></div>';
     }
   }
@@ -380,20 +390,25 @@ const PkScan = (function () {
     const it = from[idx];
     const el = $('c' + id);
     if (el) { el.querySelectorAll('button').forEach((b) => (b.disabled = true)); el.classList.add('gone'); }
+    // 先改畫面，背景再存；沒存成功會提示並重新抓
+    const oldStatus = it.status;
+    from.splice(idx, 1);
+    it.status = action === 'done' ? '已取件' : (it.deadline && it.left != null && it.left < 0 ? '逾期未取' : '待取件');
+    if (action === 'done') to.unshift(it);
+    else { to.push(it); to.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); }
+    setTimeout(render, 220); saveCache();
+    if (action === 'done') toast('#' + id + ' 已處理', () => setStatus(id, 'undo'));
+    else toast('#' + id + ' 已改回未處理');
+    pend++;
     try {
       const res = await api({ action: action, id: id });
       if (!res.ok) throw new Error(res.error || '更新失敗');
-      from.splice(idx, 1);
-      it.status = res.status;
-      if (action === 'done') to.unshift(it);
-      else { to.push(it); to.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); }
-      setTimeout(render, 220);
-      if (action === 'done') toast('#' + id + ' 已處理', () => setStatus(id, 'undo'));
-      else toast('#' + id + ' 已改回未處理');
+      it.status = res.status; saveCache();
     } catch (e) {
-      if (el) { el.classList.remove('gone'); el.querySelectorAll('button').forEach((b) => (b.disabled = false)); }
-      toast('失敗：' + e.message);
-    }
+      it.status = oldStatus;
+      toast('⚠️ #' + id + ' 沒存成功：' + e.message);
+      pend = 0; return load();
+    } finally { if (pend > 0) pend--; }
   }
 
   document.addEventListener('click', (e) => {
@@ -425,7 +440,7 @@ const PkScan = (function () {
     getItems: () => data.pending.concat(data.done),
     setStatus: mark,
     remember: (t) => api({ action: 'picked_track', track: t }),
-    onClose: (n) => { data.pending.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); render(); if (n) toast('這次對到 ' + n + ' 件'); }
+    onClose: (n) => { data.pending.sort((a, b) => ((a.deadline || '9') < (b.deadline || '9') ? -1 : 1)); saveCache(); render(); if (n) toast('這次對到 ' + n + ' 件'); }
   });
 
   load();

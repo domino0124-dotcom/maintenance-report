@@ -299,14 +299,24 @@ $('pw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
 $('logoutBtn').onclick = async () => {
   if (!confirm('確定登出？')) return;
   try { await api('booking_admin_logout'); } catch(e){}
+  try { localStorage.removeItem('bk_admin_cache'); } catch(e){}
   showLogin();
 };
 
 /* ---------- 讀資料 ---------- */
+// 加速：先秀這支手機記住的清單，背景再更新；按鈕先改畫面，背景再存
+let bkPend = 0;
+function bkSave(){ try { localStorage.setItem('bk_admin_cache', JSON.stringify(data)); } catch(e){} }
 async function load(silent){
+  if (!silent && !data){
+    try { const c = JSON.parse(localStorage.getItem('bk_admin_cache') || 'null'); if (c && c.list){ data = c; if (!selDate) selDate = data.today; renderAll(); silent = true; } } catch(e){}
+  }
   if (!silent) loading(true, '讀取中…');
   try {
-    data = await api('booking_admin_list');
+    const fresh = await api('booking_admin_list');
+    if (bkPend) return;                      // 還有按鈕在背景存，等存完再更新
+    if (data && selDate === data.today) selDate = fresh.today;   // 跨天了，跟著換到今天
+    data = fresh; bkSave();
     if (!selDate) selDate = data.today;
     const now = new Date();
     $('updated').textContent = `更新於 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -366,13 +376,13 @@ function renderList(){
 
 async function setStatus(b, status){
   if (status === '已取消' && !confirm(`確定取消這筆預約？\n${b.service}｜${b.name}\n\n行事曆的行程也會一起刪除，客人不會收到通知，請記得聯絡客人。`)) return;
-  loading(true, '更新中…');
-  try {
-    await api('booking_admin_status', { id: b.id, status });
-    toast(status === '已預約' ? '已改回' : `已標記為「${status}」`);
-    await load(true);
-  } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
-  finally { loading(false); }
+  const old = b.status;
+  b.status = status; renderAll(); bkSave();
+  toast(status === '已預約' ? '已改回' : `已標記為「${status}」`);
+  bkPend++;
+  try { await api('booking_admin_status', { id: b.id, status }); }
+  catch (e){ b.status = old; renderAll(); if (e.message !== 'LOGIN_REQUIRED') toast('⚠️ 沒存成功：' + e.message); }
+  finally { if (--bkPend === 0) load(true); }
 }
 
 /* ---------- 開放 / 暫停 ---------- */
@@ -383,13 +393,12 @@ function renderOpen(){
 $('openSwitch').onchange = async e => {
   const open = e.target.checked;
   if (!open && !confirm('確定暫停所有線上預約？\n已經預約的客人不受影響。')){ e.target.checked = true; return; }
-  loading(true, open ? '開放中…' : '暫停中…');
-  try {
-    await api('booking_admin_toggle', { open });
-    data.open = open; renderAll();
-    toast(open ? '已開放預約' : '已暫停預約');
-  } catch (err){ e.target.checked = !open; if (err.message !== 'LOGIN_REQUIRED') toast(err.message); }
-  finally { loading(false); }
+  data.open = open; renderAll(); bkSave();
+  toast(open ? '已開放預約' : '已暫停預約');
+  bkPend++;
+  try { await api('booking_admin_toggle', { open }); }
+  catch (err){ data.open = !open; renderAll(); if (err.message !== 'LOGIN_REQUIRED') toast('⚠️ 沒存成功：' + err.message); }
+  finally { bkPend--; }
 };
 
 /* ---------- 關閉時間 ---------- */
