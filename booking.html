@@ -471,7 +471,7 @@ function resetForm(){
   st = { mode: '', service: '', picks: [], desc: {}, date: '', time: '' };
   $('editBar').classList.add('hidden');
   $('fNote').value = '';
-  loadSaved(true); fillProfile();
+  loadSaved(true); Object.keys(touched).forEach(k => delete touched[k]); fillProfile();
   renderServices(); renderDates();
   $('slotCard').classList.remove('hidden'); $('dropCard').classList.add('hidden');
   $('slots').innerHTML = ''; $('slotHint').textContent = '請先選擇日期';
@@ -494,13 +494,17 @@ $('fPlate').addEventListener('blur', () => { $('fPlate').value = normPlate($('fP
 
 /* ---------- 自動帶入車籍資料（集點卡／車籍資料填過的） ---------- */
 let profile = null;
+// 車籍資料優先（比上次預約記住的新）；客人這次自己動過的欄位不蓋掉
+const touched = {};
+['fName','fPhone','fModel','fPlate'].forEach(id => $(id).addEventListener('input', () => { touched[id] = true; }));
+function setIf(id, v){ if (v && !touched[id]) $(id).value = v; }
 function fillProfile(){
   if (!profile) return;
-  if (!$('fName').value  && profile.name)  $('fName').value  = profile.name;
-  if (!$('fPhone').value && profile.phone) $('fPhone').value = profile.phone;
-  if (!$('fModel').value && profile.model) $('fModel').value = profile.model;
+  setIf('fName', profile.name);
+  setIf('fPhone', profile.phone);
+  setIf('fModel', profile.model);
   const ps = profile.plates || [];
-  if (!$('fPlate').value && ps.length) $('fPlate').value = ps[0];
+  if (ps.length && !touched.fPlate && !ps.includes(normPlate($('fPlate').value))) $('fPlate').value = ps[0];
   // 有兩台以上的車：顯示按鈕讓客人點選這次是哪台
   const box = $('plateChips');
   if (ps.length > 1){
