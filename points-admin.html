@@ -294,6 +294,9 @@ function renderMember() {
         <h2>${esc(m.name || m.lineName || '未命名')}</h2>
         <div class="hint">${esc(m.code)}${m.plate ? ' · ' + esc(String(m.plate).replace(/,/g, ' / ')) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
         ${m.name && m.lineName ? `<div class="hint">LINE：${esc(m.lineName)}</div>` : ''}
+        ${m.plate ? (String(m.verified || '') === String(m.plate)
+          ? '<div class="hint" style="color:var(--ok)">✓ 車號已確認（客人可看保養紀錄）</div>'
+          : '<div class="hint" style="color:#b45309">⚠ 車號未確認，客人看不到保養紀錄</div>') : ''}
       </div>
       <button class="close" onclick="closeSheet()">✕</button>
     </div>
@@ -306,6 +309,8 @@ function renderMember() {
       ${m.full
         ? `<button class="btn ok block" id="redeemBtn" style="font-size:18px;padding:16px">✓ 兌換${esc(meta.reward)}（點數歸零）</button>`
         : `<button class="btn main block" id="addBtn" style="font-size:19px;padding:17px">＋1 點（換機油）</button>`}
+      ${m.plate && String(m.verified || '') !== String(m.plate)
+        ? `<button class="btn ghost block" id="verifyBtn" style="margin-top:8px">確認車號是本人的（${esc(String(m.plate).replace(/,/g, ' / '))}）</button>` : ''}
       <div class="grid2" style="margin-top:8px">
         <button class="btn gray" id="adjBtn">手動調整</button>
         <button class="btn gray" onclick="closeSheet()">完成</button>
@@ -321,6 +326,15 @@ function renderMember() {
   if ($('#addBtn')) $('#addBtn').onclick = () => doAdd(false);
   if ($('#redeemBtn')) $('#redeemBtn').onclick = doRedeem;
   $('#adjBtn').onclick = doAdjust;
+  if ($('#verifyBtn')) $('#verifyBtn').onclick = doVerify;
+}
+
+async function doVerify() {
+  if (!confirm(`確認 ${current.member.plate} 是這位客人的車？\n確認後客人就能在預約頁看到這台車的保養紀錄。`)) return;
+  memberVer++;
+  const j = await api('verify', { code: current.member.code });
+  if (!j.ok) { toast(j.error); return; }
+  current = j; renderMember(); toast('車號已確認'); loadList(false);
 }
 
 async function doAdd(force) {

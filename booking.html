@@ -152,7 +152,7 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v6</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v7</div>
 
 <script>
 /* ====== 設定：換成你的 LIFF ID ====== */
@@ -551,12 +551,14 @@ async function loadRep(){
   try {
     const r = await api('booking_repairs');
     if (r.noPlate){ $('repList').innerHTML = '<div class="empty">還沒有登記車號<br><small>預約時填好車號，或在集點卡填寫車籍資料後就能查詢</small></div>'; return; }
-    if (!r.visits.length){ $('repList').innerHTML = '<div class="empty">目前還沒有保養紀錄<br><small>結帳時有登記車號的才會出現</small></div>'; return; }
+    const pend = (r.pending || []).length
+      ? `<p class="hint" style="text-align:center">🔒 ${esc(r.pending.join('、'))} 還沒經過店家確認<br>為了保護車主資料，下次來店時請店家幫您確認車號，就能看到保養紀錄</p>` : '';
+    if (!r.visits.length){ $('repList').innerHTML = pend ? `<div class="card">${pend}</div>` : '<div class="empty">目前還沒有保養紀錄<br><small>結帳時有登記車號的才會出現</small></div>'; return; }
     $('repList').innerHTML = r.visits.map(x => `
       <div class="card">
         <div class="bk-top"><b>${esc(x.date)}</b><span class="tag">${x.km ? esc(x.km) + ' km' : esc(x.plate)}</span></div>
         <div class="items">${(x.items || []).map(itemRow).join('')}</div>
-      </div>`).join('') + '<p class="hint" style="text-align:center">顯示最近 5 次，需要完整紀錄可以問店家</p>';
+      </div>`).join('') + '<p class="hint" style="text-align:center">顯示最近 5 次，需要完整紀錄可以問店家</p>' + pend;
   } catch (e){ $('repList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
