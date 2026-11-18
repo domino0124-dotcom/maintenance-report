@@ -63,6 +63,10 @@
   .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#1c1917;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:85%;text-align:center}
   .toast.show{opacity:1}
   .hidden{display:none!important}
+  .items{margin:10px 0 0}
+  .it{display:flex;gap:10px;align-items:baseline;padding:6px 0}
+  .it .k{flex:0 0 52px;font-size:14px;font-weight:700;color:var(--ink)}
+  .it .n{flex:1;font-size:13px;color:var(--muted);line-height:1.5}
 </style>
 </head>
 <body>
@@ -148,7 +152,7 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v4</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v6</div>
 
 <script>
 /* ====== 設定：換成你的 LIFF ID ====== */
@@ -531,6 +535,17 @@ async function loadProfile(){
 }
 
 /* ---------- 保養紀錄（店務系統結帳資料，只顯示自己的車，不含金額） ---------- */
+// 依品名判斷種類：左邊顯示「機油／齒輪油／輪胎…」，右邊小字顯示商品名
+const ITEM_KINDS = [
+  ['齒輪油', /齒輪油/], ['機油', /機油/], ['空濾', /空濾|空氣濾/], ['輪胎', /輪胎|胎/],
+  ['煞車', /煞車|來令|剎車/], ['皮帶', /皮帶/], ['火星塞', /火星塞/], ['電瓶', /電瓶|電池/],
+  ['普利', /普利|開閉盤|滑件|離合/], ['冷卻液', /水箱精|冷卻/], ['燈', /燈泡|大燈|方向燈/]
+];
+function itemRow(name){
+  const n = String(name || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  const k = ITEM_KINDS.find(x => x[1].test(n));
+  return `<div class="it"><span class="k">${esc(k ? k[0] : '其他')}</span><span class="n">${esc(n)}</span></div>`;
+}
 async function loadRep(){
   $('repList').innerHTML = '<div class="empty">讀取中…</div>';
   try {
@@ -540,7 +555,7 @@ async function loadRep(){
     $('repList').innerHTML = r.visits.map(x => `
       <div class="card">
         <div class="bk-top"><b>${esc(x.date)}</b><span class="tag">${x.km ? esc(x.km) + ' km' : esc(x.plate)}</span></div>
-        <p class="hint">${(x.items || []).map(esc).join('、')}</p>
+        <div class="items">${(x.items || []).map(itemRow).join('')}</div>
       </div>`).join('') + '<p class="hint" style="text-align:center">顯示最近 5 次，需要完整紀錄可以問店家</p>';
   } catch (e){ $('repList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
