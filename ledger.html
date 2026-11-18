@@ -1404,7 +1404,7 @@ async function viewMore() {
       <span class="li">${it.icon}</span><span><b>${esc(it.name)}</b><small>${esc(it.note || '')}</small></span></a>`).join('')}
     </div></div>`;
   $('#view').innerHTML = `
-    <div class="card full" id="ptCard"><h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2>
+    <div class="card full" id="ptCard"><h2>換機油集點</h2>
       <div class="hint">讀取中…</div></div>
     ${MORE_SECTIONS.map(linkCard).join('')}`;
   try {
@@ -1417,7 +1417,7 @@ async function viewMore() {
     const recent = (res.recent || []).slice(0, 5);
     const who = r => { const m = res.members.find(x => x.code === r.code) || {}; return m.name || m.lineName || r.name || r.code; };
     $('#ptCard').innerHTML = `
-      <h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2>
+      <h2>換機油集點</h2>
       <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
         <div class="kpi"><span class="l">會員</span><b>${res.stats.total}<small> 位</small></b></div>
         <div class="kpi"><span class="l">可兌換</span><b class="${full.length ? 'in' : ''}">${full.length}<small> 位</small></b></div>
@@ -1427,7 +1427,7 @@ async function viewMore() {
       ${recent.length ? recent.map(r => `<div class="line"><span>${esc(who(r))}${(r.note || '').includes('｜') ? ' <span class="s">' + esc(r.note.split('｜')[1]) + '</span>' : ''}</span>
         <span class="s">${esc(r.action)} · ${new Date(r.time).getMonth() + 1}/${new Date(r.time).getDate()}</span></div>`).join('') : '<div class="hint">還沒有人集點</div>'}`;
   } catch (e) {
-    $('#ptCard').innerHTML = `<h2>換機油集點 <a class="btn ghost sm" href="${POINTS_ADMIN}">打開集點後台 →</a></h2><div class="hint">${esc(e.message)}</div>`;
+    $('#ptCard').innerHTML = `<h2>換機油集點</h2><div class="hint">${esc(e.message)}</div>`;
   }
 }
 
