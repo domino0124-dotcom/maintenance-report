@@ -152,6 +152,11 @@
   .toast.show{opacity:1}
   .loading{color:var(--sub);text-align:center;padding:40px 0}
   .hide{display:none!important}
+  /* 嵌在店務帳裡（?embed=1）：不顯示自己的標題列，分頁改放上面 */
+  body.embed header.top{display:none}
+  body.embed nav.tabs{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--line);padding-bottom:0}
+  body.embed .wrap{padding-bottom:20px!important}
+  body.embed .toast{bottom:24px}
 </style>
 </head>
 <body>
@@ -194,6 +199,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
+if (new URLSearchParams(location.search).get('embed') === '1') document.addEventListener('DOMContentLoaded', () => {
+  document.body.classList.add('embed');
+  const nav = document.querySelector('nav.tabs'), app = document.getElementById('appView');
+  if (nav && app) app.prepend(nav);   // 分頁移到最上面
+});
 /* ====== 設定 ====== */
 const API = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
 const PW_KEY = 'wade_ai_admin_pw';
