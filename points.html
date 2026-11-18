@@ -124,7 +124,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v6</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v7</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -347,10 +347,32 @@ function startPoll() {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state) { load(false, true); startPoll(); } });
 
+// 客人用手機相機掃牆上 QR，常會用 Safari／Chrome 打開 → 要 LINE 帳密登入（很多人忘記密碼）
+// → 改成自動跳回 LINE App 打開，就不用登入
+function openInLineApp() {
+  const q0 = new URLSearchParams(location.search);
+  let qs = q0.get('liff.state') || location.search || '';
+  if (qs && qs.charAt(0) !== '?') qs = '?' + qs.replace(/^[^?]*\?/, '');
+  const url = 'https://line.me/R/app/' + LIFF_ID + qs;
+  $('#app').innerHTML = `
+    <div class="card" style="text-align:center">
+      <h2>請用 LINE 打開</h2>
+      <div class="hint" style="margin:6px 0 16px">正在幫您切換到 LINE…<br>沒有自動跳轉的話，請按下面按鈕</div>
+      <a class="btn main block" href="${url}">用 LINE 打開</a>
+      <div style="margin-top:18px"><a href="#" id="pwLogin" style="font-size:12px;color:#9aa0ab">我在電腦上，要用帳號密碼登入</a></div>
+    </div>`;
+  $('#pwLogin').onclick = (e) => { e.preventDefault(); liff.login({ redirectUri: location.href }); };
+  setTimeout(() => { location.href = url; }, 300);
+}
+
 (async () => {
   try {
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    if (!liff.isLoggedIn()) {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!liff.isInClient() && mobile) return openInLineApp();
+      return liff.login({ redirectUri: location.href });
+    }
     // 電腦瀏覽器會記住舊的登入憑證，過期了就自動重新登入一次
     const dec = liff.getDecodedIDToken && liff.getDecodedIDToken();
     if (!dec || dec.exp * 1000 < Date.now() + 120000) {
