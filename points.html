@@ -168,9 +168,10 @@ function render() {
         <label>第三台車（選填）</label>
         <input class="plate sm" data-i="2" value="${esc(ps[2] || '')}" placeholder="" autocapitalize="characters" autocomplete="off" maxlength="9">
         <div class="perr" id="plateErr"></div>
-        <label>姓名（選填）</label><input id="fName" value="${esc(m.name)}" placeholder="方便店家稱呼">
-        <label>手機（選填）</label><input id="fPhone" value="${esc(m.phone)}" inputmode="tel" placeholder="09xx-xxx-xxx">
-        <button class="btn main block" id="save">儲存</button>`;
+        <label>車種${profileMode ? ' <b style="color:var(--red)">*必填</b>' : '（選填）'}</label><input id="fModel" value="${esc(m.model || '')}" placeholder="例如 JET SL、FORCE 2.0、勁戰六代">
+        <label>姓名${profileMode ? '' : '（選填）'}</label><input id="fName" value="${esc(m.name)}" placeholder="方便店家稱呼">
+        <label>手機${profileMode ? '' : '（選填）'}</label><input id="fPhone" value="${esc(m.phone)}" inputmode="tel" placeholder="09xx-xxx-xxx">
+        <button class="btn main block" id="save">${profileMode ? '送出資料' : '儲存'}</button>`;
   const profileCard = () => `
     <div class="card">
       <details id="prof" ${profOpen ? 'open' : ''}>
@@ -178,6 +179,18 @@ function render() {
         ${fields()}
       </details>
     </div>`;
+  if (profileMode) {
+    $('#app').innerHTML = profileDone ? `
+      <div class="card notice ok"><div class="nt">✅ 資料已送出</div>
+        <div class="nx">謝謝您！店家已經收到您的車籍資料，有問題可以直接在聊天室問我們喔。</div></div>
+      <button class="btn main block" id="closeBtn">回到聊天室</button>` : `
+      <div class="head"><h1>車籍資料</h1>
+        <div class="subtitle">填好車號和車種，店家就能幫您建檔，之後保養、估價都會更快。換機油集點也會用這個車號。</div></div>
+      <div class="card"><div id="prof" data-open="1">${fields()}</div></div>`;
+    if (profileDone) { $('#closeBtn').onclick = () => { try { liff.closeWindow(); } catch (e) {} }; return; }
+    bindProfile(ps);
+    return;
+  }
   $('#app').innerHTML = `
     ${pendingKey && ps.length > 1 ? `<div class="card needplate"><h2>這次是哪台車換機油？</h2>
       <div class="choose">${ps.map(p => `<button class="btn main" data-plate="${esc(p)}">${esc(p)}</button>`).join('')}</div></div>` : ''}
@@ -223,6 +236,10 @@ function render() {
   $('#refresh').onclick = () => load(true);
   if ($('#prof').tagName === 'DETAILS') $('#prof').ontoggle = () => { profOpen = $('#prof').open; };
   document.querySelectorAll('[data-plate]').forEach(b => b.onclick = () => selfAdd(b.dataset.plate));
+  bindProfile(ps);
+}
+
+function bindProfile(ps) {
   const pls = [...document.querySelectorAll('input.plate')];
   pls.forEach(pl => pl.oninput = () => { pl.value = fmtPlate(pl.value); $('#plateErr').textContent = ''; });
   $('#save').onclick = async () => {
@@ -230,13 +247,24 @@ function render() {
     const bad = plates.find(p => !PLATE_RE.test(p));
     if (!plates.length || !fmtPlate(pls[0].value)) { $('#plateErr').textContent = '第一個車牌一定要填'; pls[0].focus(); return; }
     if (bad) { $('#plateErr').textContent = `${bad} 格式不對，請輸入像 NRR-9331 這樣，中間要有 -`; return; }
-    const btn = $('#save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const model = $('#fModel').value.trim();
+    if (profileMode && !model) { toast('請填寫車種'); $('#fModel').focus(); return; }
+    const btn = $('#save'); const label = btn.textContent; btn.disabled = true; btn.textContent = '送出中…';
     try {
-      const j = await api('saveProfile', { name: $('#fName').value, phone: $('#fPhone').value, plates });
+      const j = await api('saveProfile', { name: $('#fName').value, phone: $('#fPhone').value, plates, model });
       state.member = j.member; profOpen = false;
+      if (profileMode) {
+        // 用客人的名義在聊天室留一則訊息 → 聊天室就會出現，老闆可以直接回覆
+        const m = j.member;
+        const lines = ['我已填好車籍資料', '車號：' + plates.join('、'), '車種：' + model];
+        if (m.name) lines.push('姓名：' + m.name);
+        if (m.phone) lines.push('電話：' + m.phone);
+        try { if (liff.isInClient()) await liff.sendMessages([{ type: 'text', text: lines.join('\n') }]); } catch (e) { console.warn(e); }
+        profileDone = true; render(); return;
+      }
       if (pendingKey && plates.length === 1) return selfAdd(plates[0]);
       render(); toast('已儲存');
-    } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = '儲存'; }
+    } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = label; }
   };
 }
 
@@ -252,6 +280,7 @@ function fmtPlate(v) {
 }
 function platesOf(m) { return String(m.plate || '').split(',').filter(Boolean); }
 let pendingKey = null; // 從牆上 QR 進來、還沒完成集點
+let profileMode = false, profileDone = false; // 從歡迎卡片「填寫車籍資料」進來
 async function selfAdd(plate) {
   $('#app').innerHTML = '<div class="center">集點中…</div>';
   try {
@@ -323,6 +352,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
     try { sessionStorage.removeItem('reLogin'); } catch (e) {}
     idToken = liff.getIDToken();
     const q = new URLSearchParams(location.search);
+    if (q.get('p') === 'profile') {
+      profileMode = true;
+      document.title = '韋德機車精品｜車籍資料';
+      const cb = document.querySelector('.crumb b'); if (cb) cb.textContent = '車籍資料';
+    }
     if (q.get('add') === '1') {
       // 牆上 QR：網址參數用完就清掉，重新整理不會重複集
       history.replaceState(null, '', location.pathname);
@@ -334,7 +368,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
       if (ps.length === 1) await selfAdd(ps[0]);   // 一台車：直接集
       // 沒車牌 → 畫面先要求填車牌；多台車 → 畫面顯示選車
     }
-    startPoll();
+    if (!profileMode) startPoll();
   } catch (e) {
     $('#app').innerHTML = `<div class="err">開啟失敗：${esc(e.message)}<br>請從 LINE 的「集點卡」按鈕開啟。</div>`;
   }

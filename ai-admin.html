@@ -175,6 +175,7 @@
     <button data-tab="home" class="on" onclick="go('home')"><span class="e">📊</span>總覽</button>
     <button data-tab="inbox" onclick="go('inbox')"><span class="e">💬</span>客服<span class="badge hide" id="bdInbox"></span></button>
     <button data-tab="todo" onclick="go('todo')"><span class="e">❓</span>待補<span class="badge hide" id="bdTodo"></span></button>
+    <button data-tab="notice" onclick="go('notice')"><span class="e">📢</span>公告</button>
     <button data-tab="kb" onclick="go('kb')"><span class="e">📚</span>知識庫</button>
   </div></nav>
 </div>
@@ -204,37 +205,6 @@ async function api(type, data){
   return j;
 }
 
-/* ====== 加速：先顯示上次的資料，背景再更新；按鈕動作先改畫面，背景再存 ====== */
-const MEMO = {};
-let VIEW = 0, PENDING = 0, QUEUE = Promise.resolve();
-function memoGet(k){ if (MEMO[k]) return MEMO[k]; try { const v = JSON.parse(localStorage.getItem('aiadm_' + k) || 'null'); if (v) MEMO[k] = v; return v; } catch(e){ return null; } }
-function memoSet(k, v){ MEMO[k] = v; try { localStorage.setItem('aiadm_' + k, JSON.stringify(v)); } catch(e){} }
-async function swr(k, type, data, draw){
-  const my = VIEW, had = memoGet(k);
-  if (had) draw(had);
-  const p = api(type, data).then(d => {
-    if (PENDING) return;                       // 還有動作在背景存，等存完再更新
-    const changed = JSON.stringify(d) !== JSON.stringify(MEMO[k]);
-    memoSet(k, d);
-    if (my === VIEW && (changed || !had)) draw(d);
-  });
-  if (had) p.catch(e => toast('更新失敗：' + e.message)); else await p;
-}
-// 背景依序送出（避免刪兩筆時列號錯亂），全部送完再安靜地更新一次
-function bg(type, data, okMsg){
-  PENDING++;
-  if (okMsg) toast(okMsg);
-  QUEUE = QUEUE.then(() => api(type, data)).catch(e => { toast('⚠️ 沒存成功：' + e.message); })
-    .finally(() => { if (--PENDING === 0) quietRefresh(); });
-  return QUEUE;
-}
-function quietRefresh(){
-  const run = ({ home: renderHome, inbox: CHAT_USER ? () => openChat(CHAT_USER, true) : renderInbox, todo: renderTodo, kb: renderKb })[TAB];
-  run && run().catch(() => {});
-}
-// 刪掉第 row 列後，後面的列號都要往前移一格
-function shiftRows(list, row){ (list || []).forEach(x => { if (x.row > row) x.row--; }); }
-
 /* ====== 登入 ====== */
 async function doLogin(){
   PW = $('#pw').value.trim();
@@ -248,7 +218,7 @@ $('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); })
 
 /* ====== 分頁 ====== */
 let TAB = 'home', CHAT_USER = null;
-const TITLES = { home:'總覽', inbox:'客服', todo:'待補問題', kb:'知識庫' };
+const TITLES = { home:'總覽', inbox:'客服', todo:'待補問題', notice:'公告與公休', kb:'知識庫' };
 function showApp(){ $('#loginView').classList.add('hide'); $('#appView').classList.remove('hide'); go(location.hash.slice(1) || 'home'); }
 function go(tab){
   if (!TITLES[tab]) tab = 'home';
@@ -259,9 +229,8 @@ function go(tab){
   refresh();
 }
 function refresh(){
-  VIEW++;
   $('#main').innerHTML = '<div class="loading">載入中…</div>';
-  ({ home: renderHome, inbox: CHAT_USER ? () => openChat(CHAT_USER) : renderInbox, todo: renderTodo, kb: renderKb })[TAB]()
+  ({ home: renderHome, inbox: CHAT_USER ? () => openChat(CHAT_USER) : renderInbox, todo: renderTodo, notice: renderNotice, kb: renderKb })[TAB]()
     .catch(e => { $('#main').innerHTML = '<div class="card empty">⚠️ ' + esc(e.message) + '</div>'; });
 }
 function setBadge(id, n){ const b = $(id); b.textContent = n; b.classList.toggle('hide', !n); }
@@ -281,8 +250,8 @@ function ring(used, limit, label){
     <b>${esc(label)}</b><small>本月已用 ${used}${limit ? ' / ' + limit : ''}</small></div>`;
 }
 
-function renderHome(){ return swr('home', 'ai_admin_overview', null, drawHome); }
-function drawHome(d){
+async function renderHome(){
+  const d = await api('ai_admin_overview');
   setBadge('#bdInbox', d.humans.length); setBadge('#bdTodo', d.todoCount);
   const hi = d.hour < 5 ? '夜深了' : d.hour < 11 ? '早安' : d.hour < 18 ? '午安' : '晚安';
   const st = { on:['','AI 客服運作中'], test:['test','AI 測試模式（只回測試名單）'], off:['off','AI 客服已關閉'] }[d.status];
@@ -358,15 +327,16 @@ function drawHome(d){
     <div class="hint" style="text-align:center;margin-top:16px">AI 模型：${esc(d.model)}</div>`;
 }
 
-function toggleAi(on){
+async function toggleAi(on){
   if (!on && !confirm('確定要關閉 AI？關閉後所有客人的訊息都要你自己回。')) return;
-  const h = MEMO.home; if (h) { h.status = on ? 'on' : 'off'; drawHome(h); }
-  bg('ai_admin_switch', { on }, on ? '已開啟 AI' : '已關閉 AI');
+  await api('ai_admin_switch', { on });
+  toast(on ? '已開啟 AI' : '已關閉 AI');
+  refresh();
 }
 
 /* ====== 客服 ====== */
-function renderInbox(){ return swr('inbox', 'ai_admin_conversations', null, drawInbox); }
-function drawInbox(d){
+async function renderInbox(){
+  const d = await api('ai_admin_conversations');
   const waiting = d.list.filter(u => u.mode === '真人').length;
   setBadge('#bdInbox', waiting);
   if (!d.list.length) { $('#main').innerHTML = '<div class="card empty">還沒有客人傳訊息給 AI</div>'; return; }
@@ -381,14 +351,11 @@ function drawInbox(d){
     </div>`).join('')}</div>`;
 }
 
-function openChat(userId, quiet){
+async function openChat(userId){
   CHAT_USER = userId;
   if (TAB !== 'inbox') { TAB = 'inbox'; document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'inbox')); $('#pageTitle').textContent = '客服'; }
-  if (!quiet) { VIEW++; $('#main').innerHTML = '<div class="loading">載入中…</div>'; }
-  return swr('chat_' + userId, 'ai_admin_chat', { userId }, d => drawChat(userId, d));
-}
-function drawChat(userId, d){
-  const draft = $('#sendText') ? $('#sendText').value : '';
+  $('#main').innerHTML = '<div class="loading">載入中…</div>';
+  const d = await api('ai_admin_chat', { userId });
   const left = d.quota && d.quota.limit ? d.quota.limit - d.quota.used : null;
   const isHuman = d.mode === '真人';
   $('#main').innerHTML = `
@@ -411,31 +378,25 @@ function drawChat(userId, d){
       <div class="hint">後台回覆會用掉 1 則推播額度${left != null ? '（本月剩 ' + left + ' 則）' : ''}，送出後這位客人會自動改成真人模式。不想用額度的話，請到 LINE 官方帳號 App 回覆。</div>
     </div>`;
   const box = $('#msgs'); box.scrollTop = box.scrollHeight;
-  if (draft) $('#sendText').value = draft;
 }
 
-function setMode(userId, mode){
-  const d = MEMO['chat_' + userId]; if (d) { d.mode = mode; drawChat(userId, d); }
-  bg('ai_admin_mode', { userId, mode }, mode === 'AI' ? '已切回 AI' : '已改由你回覆，AI 暫停');
+async function setMode(userId, mode){
+  await api('ai_admin_mode', { userId, mode });
+  toast(mode === 'AI' ? '已切回 AI' : '已改由你回覆，AI 暫停');
+  openChat(userId);
 }
 
 async function sendMsg(userId){
   const text = $('#sendText').value.trim();
   if (!text) return;
-  // 推播可能失敗（額度用完），所以這個要等結果；先把訊息放上畫面
-  const d = MEMO['chat_' + userId];
-  $('#sendText').value = '';
-  if (d) { d.msgs.push({ role: '老闆', text, time: '傳送中…' }); d.mode = '真人'; drawChat(userId, d); }
   $('#sendBtn').disabled = true;
-  PENDING++;
-  try { await api('ai_admin_send', { userId, text }); toast('已送出'); }
-  catch(e){ toast(e.message); if (d) { d.msgs.pop(); drawChat(userId, d); } $('#sendText').value = text; }
-  finally { if (--PENDING === 0) openChat(userId, true); }
+  try { await api('ai_admin_send', { userId, text }); toast('已送出'); openChat(userId); }
+  catch(e){ toast(e.message); $('#sendBtn').disabled = false; }
 }
 
 /* ====== 待補 ====== */
-function renderTodo(){ return swr('todo', 'ai_admin_todos', null, drawTodo); }
-function drawTodo(d){
+async function renderTodo(){
+  const d = await api('ai_admin_todos');
   setBadge('#bdTodo', d.open.length);
   const item = (t, done) => `<div class="todo">
       <div class="q">${esc(t.q)}</div>
@@ -451,30 +412,86 @@ function drawTodo(d){
     <div class="card">${d.open.map(t => item(t, false)).join('') || '<div class="empty">🎉 目前沒有待補問題</div>'}</div>
     ${d.done.length ? `<h3 class="sec">已補答案（最近 ${d.done.length} 題）</h3><div class="card">${d.done.map(t => item(t, true)).join('')}</div>` : ''}`;
 }
-function saveTodo(row){
-  const answer = $('#ans' + row).value;
-  const d = MEMO.todo;
-  if (d) {
-    const i = d.open.findIndex(t => t.row === row);
-    if (i >= 0) { const t = d.open.splice(i, 1)[0]; t.answer = answer; d.done.unshift(t); }
-    else { const t = d.done.find(t => t.row === row); if (t) t.answer = answer; }
-    drawTodo(d);
-  }
-  bg('ai_admin_answer', { row, answer }, '已儲存，AI 2 分鐘內會開始使用');
+async function saveTodo(row){
+  await api('ai_admin_answer', { row, answer: $('#ans' + row).value });
+  toast('已儲存，AI 2 分鐘內會開始使用'); refresh();
 }
-function delTodo(row){
+async function delTodo(row){
   if (!confirm('確定刪除這一題？')) return;
-  const d = MEMO.todo;
-  if (d) {
-    d.open = d.open.filter(t => t.row !== row); d.done = d.done.filter(t => t.row !== row);
-    shiftRows(d.open, row); shiftRows(d.done, row); drawTodo(d);
-  }
-  bg('ai_admin_todo_delete', { row }, '已刪除');
+  await api('ai_admin_todo_delete', { row }); toast('已刪除'); refresh();
+}
+
+/* ====== 公告＋公休 ====== */
+function addDays(d, n){ const t = new Date(d + 'T12:00:00'); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); }
+function mdLabel(d){ const W = '日一二三四五六'; const t = new Date(d + 'T12:00:00'); return (t.getMonth() + 1) + '/' + t.getDate() + '（' + W[t.getDay()] + '）'; }
+async function renderNotice(){
+  const d = await api('ai_admin_notices');
+  $('#main').innerHTML = `
+    <h3 class="sec" style="margin-top:4px">📢 臨時公告</h3>
+    <div class="hint" style="margin:-4px 4px 8px">AI 會優先照公告回答客人，例如二手商品、活動、臨時異動。到期自動消失。</div>
+    <div class="card">
+      ${d.notices.length ? d.notices.map(n => `<div class="todo">
+        <div class="q">${esc(n.text)}</div>
+        <div class="meta">公告到 ${esc(mdLabel(n.until))}</div>
+        <div class="row-acts"><button class="btn sm danger" onclick="delNotice(${n.idx})">刪除</button></div></div>`).join('')
+        : '<div class="empty">目前沒有公告</div>'}
+    </div>
+    <div class="card" style="margin-top:10px">
+      <b>＋ 新增公告</b>
+      <label class="field"><span>內容（AI 會照這個回答）</span>
+        <textarea id="nText" placeholder="例如：脆上貼的二手後照鏡 $500，先搶先贏，要的話老闆會跟您確認"></textarea></label>
+      <label class="field"><span>公告到哪一天（過了自動消失）</span>
+        <input type="date" id="nUntil" value="${addDays(d.today, 7)}" min="${d.today}"></label>
+      <div class="row-acts"><button class="btn pri" onclick="addNotice()">新增公告</button></div>
+    </div>
+
+    <h3 class="sec">📅 公休／提早關門</h3>
+    <div class="hint" style="margin:-4px 4px 8px">${d.hasBooking ? '跟預約系統同步：設定後那天（或那段時間）不能預約，AI 也會告訴客人。' : '找不到預約系統'}</div>
+    <div class="card list">
+      ${d.closures.length ? d.closures.map(c => `<div class="item" style="cursor:default">
+        <div class="mid"><b>${esc(c.label)} ${esc(c.time)}</b><small>${esc(c.note || '')}</small></div>
+        ${c.date ? `<button class="btn sm danger" onclick="delClose('${esc(c.date)}')">取消</button>` : '<span class="chip">每週固定</span>'}</div>`).join('')
+        : '<div class="empty">接下來沒有公休</div>'}
+    </div>
+    ${d.hasBooking ? `<div class="card" style="margin-top:10px">
+      <b>＋ 新增公休</b>
+      <label class="field"><span>日期</span><input type="date" id="cDate" value="${d.today}" min="${d.today}"></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:6px 0"><input type="checkbox" id="cFull" checked onchange="$('#cTimes').classList.toggle('hide', this.checked)"> 整天公休</label>
+      <div id="cTimes" class="hide" style="display:flex;gap:8px">
+        <label class="field" style="flex:1"><span>從</span><input type="time" id="cFrom" value="18:00"></label>
+        <label class="field" style="flex:1"><span>到</span><input type="time" id="cTo" value="22:00"></label>
+      </div>
+      <label class="field"><span>備註（AI 會跟客人說，可以不填）</span><input id="cNote" placeholder="例如：家裡有事、員工旅遊"></label>
+      <div class="row-acts"><button class="btn pri" onclick="addClose()">設定公休</button></div>
+    </div>` : ''}`;
+}
+async function addNotice(){
+  try { await api('ai_admin_notice_add', { text: $('#nText').value, until: $('#nUntil').value }); toast('已新增公告，AI 馬上生效'); refresh(); }
+  catch(e){ toast(e.message); }
+}
+async function delNotice(idx){
+  if (!confirm('確定刪除這則公告？')) return;
+  await api('ai_admin_notice_del', { idx }); toast('已刪除'); refresh();
+}
+async function addClose(){
+  const full = $('#cFull').checked;
+  try {
+    const r = await api('ai_admin_close_add', { date: $('#cDate').value, fullDay: full, from: $('#cFrom').value, to: $('#cTo').value, note: $('#cNote').value });
+    alert(r.msg); refresh();
+  } catch(e){ toast(e.message); }
+}
+async function delClose(date){
+  if (!confirm('取消 ' + mdLabel(date) + ' 的公休？預約系統那天會重新開放。')) return;
+  const r = await api('ai_admin_close_del', { date }); toast(r.msg.split('\n')[0]); refresh();
 }
 
 /* ====== 知識庫 ====== */
 let KB = [];
-function renderKb(){ return swr('kb', 'ai_admin_kb', null, d => { KB = d.list; drawKb($('.search') ? $('.search').value : ''); }); }
+async function renderKb(){
+  const d = await api('ai_admin_kb');
+  KB = d.list;
+  drawKb('');
+}
 function drawKb(q){
   const kw = q.trim().toLowerCase();
   const list = KB.filter(x => !kw || (x.cat + x.q + x.a).toLowerCase().includes(kw));
@@ -494,7 +511,6 @@ function drawKb(q){
 let kbT;
 function drawKbKeep(v){ clearTimeout(kbT); kbT = setTimeout(() => { drawKb(v); const s = $('.search'); s.focus(); s.setSelectionRange(v.length, v.length); }, 250); }
 function editKb(row){
-  if (row === -1) { toast('還在儲存，請稍等一下'); return; }
   const x = row ? KB.find(k => k.row === row) : { row: null, cat: '', q: '', a: '', off: false };
   const cats = [...new Set(KB.map(k => k.cat).filter(Boolean))];
   $('#kbEdit').innerHTML = `<div class="card" style="margin:10px 0;outline:2px solid var(--green)">
@@ -511,20 +527,15 @@ function editKb(row){
     </div></div>`;
   $('#kbEdit').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
-function saveKb(row){
-  const x = { row, cat: $('#kCat').value, q: $('#kQ').value, a: $('#kA').value, off: $('#kOff').checked };
-  if (row) { const k = KB.find(k => k.row === row); if (k) Object.assign(k, x); }
-  else KB.push(Object.assign({}, x, { row: -1 }));   // 新增的列號等存完再更新
-  const q = $('.search') ? $('.search').value : '';
-  drawKb(q);
-  bg('ai_admin_kb_save', x, '已儲存');
+async function saveKb(row){
+  try {
+    await api('ai_admin_kb_save', { row, cat: $('#kCat').value, q: $('#kQ').value, a: $('#kA').value, off: $('#kOff').checked });
+    toast('已儲存'); refresh();
+  } catch(e){ toast(e.message); }
 }
-function delKb(row){
+async function delKb(row){
   if (!confirm('確定刪除這筆資料？')) return;
-  KB = KB.filter(k => k.row !== row); shiftRows(KB, row);
-  if (MEMO.kb) MEMO.kb.list = KB;
-  drawKb($('.search') ? $('.search').value : '');
-  bg('ai_admin_kb_delete', { row }, '已刪除');
+  await api('ai_admin_kb_delete', { row }); toast('已刪除'); refresh();
 }
 
 /* ====== 示範資料（網址加 ?demo 可預覽） ====== */
@@ -547,6 +558,9 @@ function demoApi(type){
     { role:'老闆', text:'可以來店裡聊聊喔～', time:'11/17 13:25' } ] });
   if (type === 'ai_admin_todos') return wait({ open:[ { row:5, q:'有賣安全帽嗎', name:'阿德', time:'11/17 12:10', answer:'' }, { row:6, q:'可以刷卡嗎', name:'小韋', time:'11/17 11:00', answer:'' } ],
     done:[ { row:2, q:'週六幾點關門', name:'小韋', time:'11/17 00:18', answer:'週六 15:00–20:00' } ] });
+  if (type === 'ai_admin_notices') return wait({ today:'2026-11-17', hasBooking:true,
+    notices:[ { idx:0, text:'脆上貼的二手後照鏡 $500，先搶先贏，要的話老闆會跟您確認', until:'2026-11-30' } ],
+    closures:[ { date:'2026-11-22', label:'11/22（六）', time:'整天', note:'家裡有事' }, { date:'', label:'每週日', time:'整天', note:'' } ] });
   if (type === 'ai_admin_kb') return wait({ list:[
     { row:2, cat:'店家', q:'營業時間', a:'週一到週五 13:00–22:00；週六 15:00–20:00；週日公休', off:false },
     { row:3, cat:'輪胎', q:'12 吋輪胎價格', a:'12 吋輪胎 NT$1400～2800…', off:false },
