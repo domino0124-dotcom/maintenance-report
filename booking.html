@@ -108,6 +108,7 @@
 
     <div class="card">
       <h2>4. 聯絡資料</h2>
+      <p id="profStatus" class="hint" style="margin:-4px 0 10px">讀取車籍資料中…</p>
       <label>姓名<input id="fName" maxlength="20" autocomplete="name"></label>
       <label>電話<input id="fPhone" type="tel" inputmode="numeric" maxlength="12" placeholder="0912345678"></label>
       <label>車種<input id="fModel" maxlength="20" placeholder="例：JET SL、勁戰六代"></label>
@@ -141,7 +142,7 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v2</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v3</div>
 
 <script>
 /* ====== 設定：換成你的 LIFF ID ====== */
@@ -515,8 +516,11 @@ function fillProfile(){
   } else box.classList.add('hidden');
 }
 async function loadProfile(){
-  try { const r = await api('booking_profile'); profile = r.profile; fillProfile(); }
-  catch (e){ toast('車籍資料讀取失敗：' + e.message); }
+  const st2 = $('profStatus');
+  try {
+    const r = await api('booking_profile'); profile = r.profile; fillProfile();
+    st2.textContent = profile ? '✓ 已帶入您的車籍資料' : '（還沒有車籍資料，填好這次的資料就可以）';
+  } catch (e){ st2.textContent = '車籍資料讀取失敗：' + e.message; }
 }
 
 /* ---------- 按鈕 ---------- */
