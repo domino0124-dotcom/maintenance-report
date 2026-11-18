@@ -124,7 +124,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v5</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v6</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -180,13 +180,18 @@ function render() {
       </details>
     </div>`;
   if (profileMode) {
-    $('#app').innerHTML = profileDone ? `
+    $('#app').innerHTML = profileDone ? (profileSent ? `
       <div class="card notice ok"><div class="nt">✅ 資料已送出</div>
         <div class="nx">謝謝您！店家已經收到您的車籍資料，有問題可以直接在聊天室問我們喔。</div></div>
       <button class="btn main block" id="closeBtn">回到聊天室</button>` : `
+      <div class="card notice ok"><div class="nt">✅ 資料已儲存</div>
+        <div class="nx">最後一步：請按下面按鈕，把資料傳到聊天室給店家（訊息已幫您打好，按「傳送」就好）。</div></div>
+      <a class="btn main block" id="sendBtn" href="https://line.me/R/oaMessage/${encodeURIComponent(OA_ID)}/?${encodeURIComponent(profileMsg)}">傳到聊天室給店家</a>
+      <div style="text-align:center;font-size:11px;color:#b0b5c0;margin-top:10px">${esc(profileErr)}</div>`) : `
       <div class="head"><h1>車籍資料</h1>
         <div class="subtitle">填好車號和車種，店家就能幫您建檔，之後保養、估價都會更快。換機油集點也會用這個車號。</div></div>
       <div class="card"><div id="prof" data-open="1">${fields()}</div></div>`;
+    if (profileDone && !profileSent) return;
     if (profileDone) { $('#closeBtn').onclick = () => { try { liff.closeWindow(); } catch (e) {} }; return; }
     bindProfile(ps);
     return;
@@ -259,7 +264,12 @@ function bindProfile(ps) {
         const lines = ['我已填好車籍資料', '車號：' + plates.join('、'), '車種：' + model];
         if (m.name) lines.push('姓名：' + m.name);
         if (m.phone) lines.push('電話：' + m.phone);
-        try { if (liff.isInClient()) await liff.sendMessages([{ type: 'text', text: lines.join('\n') }]); } catch (e) { console.warn(e); }
+        profileMsg = lines.join('\n'); profileSent = false; profileErr = '';
+        try {
+          if (!liff.isInClient()) throw new Error('不是在 LINE 裡開啟');
+          await liff.sendMessages([{ type: 'text', text: profileMsg }]);
+          profileSent = true;
+        } catch (e) { profileErr = (e && (e.message || e.code)) || String(e); console.warn(e); }
         profileDone = true; render(); return;
       }
       if (pendingKey && plates.length === 1) return selfAdd(plates[0]);
@@ -280,7 +290,8 @@ function fmtPlate(v) {
 }
 function platesOf(m) { return String(m.plate || '').split(',').filter(Boolean); }
 let pendingKey = null; // 從牆上 QR 進來、還沒完成集點
-let profileMode = false, profileDone = false; // 從歡迎卡片「填寫車籍資料」進來
+let profileMode = false, profileDone = false, profileSent = false, profileMsg = '', profileErr = '';
+const OA_ID = '@wademoto'; // 韋德機車精品官方帳號 ID（自動傳送失敗時的備用按鈕用） // 從歡迎卡片「填寫車籍資料」進來
 async function selfAdd(plate) {
   $('#app').innerHTML = '<div class="center">集點中…</div>';
   try {
