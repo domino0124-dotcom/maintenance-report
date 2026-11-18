@@ -101,6 +101,17 @@
   .bub.boss{align-self:flex-end;background:var(--green-d);color:#fff;border-bottom-right-radius:4px}
   .who{font-size:11px;color:var(--sub);margin:0 6px}
   .who.r{align-self:flex-end}
+  .pcard{background:#f6f8f7;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+  .pcard.none{color:var(--sub)}
+  .pcard .pl{font-size:11px;word-break:break-all;user-select:all}
+  .pcard .pg{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+  .pcard .pg span{display:block;font-size:11px;color:var(--sub)}
+  .pcard .pg b{font-weight:600}
+  .pcard .pg a{color:inherit}
+  .pcard .rp{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  .pcard .rh{font-weight:700;margin-bottom:4px}
+  .pcard .ri{padding:4px 0}
+  .pcard .ri small{color:var(--sub)}
   .send{display:flex;gap:8px;margin-top:12px}
   .send textarea{flex:1;border:1px solid var(--line);border-radius:12px;padding:10px;resize:none;height:46px;background:#fff}
   .hint{font-size:12px;color:var(--sub);margin-top:6px}
@@ -366,6 +377,7 @@ async function openChat(userId){
         ${isHuman ? '<span class="chip a">真人模式</span>' : '<span class="chip g">AI 回覆中</span>'}
         <button class="btn sm ${isHuman ? 'pri' : ''}" onclick="setMode('${esc(userId)}','${isHuman ? 'AI' : '真人'}')">${isHuman ? '🤖 切回 AI' : '🙋 改由我回'}</button>
       </div>
+      ${profileCard(d.profile)}
       <div class="msgs" id="msgs">${d.msgs.map(m => {
         const cls = m.role === '客人' ? 'c' : m.role === '老闆' ? 'boss' : 'ai';
         return `<div class="who ${cls === 'c' ? '' : 'r'}">${esc(m.role === 'AI' ? '韋德小幫手' : m.role)}</div>
@@ -378,6 +390,25 @@ async function openChat(userId){
       <div class="hint">後台回覆會用掉 1 則推播額度${left != null ? '（本月剩 ' + left + ' 則）' : ''}，送出後這位客人會自動改成真人模式。不想用額度的話，請到 LINE 官方帳號 App 回覆。</div>
     </div>`;
   const box = $('#msgs'); box.scrollTop = box.scrollHeight;
+}
+
+// 客人車籍卡（集點會員資料＋預約＋維修紀錄）
+function profileCard(p){
+  if (!p) return '';
+  const m = p.member;
+  if (!m) return `<div class="pcard none">📝 這位客人還沒填車籍資料，可以傳連結給他：<br>
+    <span class="pl">https://liff.line.me/2010744078-Wl4rPNJ4?p=profile</span></div>`;
+  const row = (k, v) => v ? `<div><span>${k}</span><b>${esc(v)}</b></div>` : '';
+  const bk = (p.bookings || []).map(b => `${b.date.slice(5).replace('-','/')} ${b.kind === '留車' ? '留車' : b.time} ${b.service}`).join('、');
+  const rp = p.repairs && p.repairs.length ? `<div class="rp"><div class="rh">🔧 維修紀錄</div>${p.repairs.map(r =>
+      `<div class="ri"><b>${esc(r.date)}</b>${r.km ? '　' + esc(r.km) + ' km' : ''}${r.amount ? '　$' + esc(r.amount) : ''}<br><small>${esc(r.items || '')}</small></div>`).join('')}</div>` : '';
+  return `<div class="pcard">
+    <div class="pg">
+      ${row('車號', m.plates.join(' / '))}${row('車種', m.model)}
+      ${row('姓名', m.name)}${m.phone ? `<div><span>電話</span><b><a href="tel:${esc(m.phone)}">${esc(m.phone)}</a></b></div>` : ''}
+      <div><span>集點</span><b>${m.points} / ${m.goal}${m.points >= m.goal ? ' 🎉可兌換' : ''}</b></div>
+      ${row('最後換機油', m.lastAdd)}${row('預約', bk)}
+    </div>${rp}</div>`;
 }
 
 async function setMode(userId, mode){
@@ -551,7 +582,10 @@ function demoApi(type){
   if (type === 'ai_admin_conversations') return wait({ list:[
     { userId:'U1', name:'小韋', last:'週六幾點關門', lastRole:'客人', lastTime:'11/17 13:20', count:12, mode:'真人', waiting:true },
     { userId:'U2', name:'阿德', last:'12 吋輪胎價格在 NT$1400～2800 之間…', lastRole:'AI', lastTime:'11/17 12:05', count:4, mode:'AI' } ] });
-  if (type === 'ai_admin_chat') return wait({ userId:'U1', name:'小韋', mode:'真人', quota:{ used:9, limit:200 }, msgs:[
+  if (type === 'ai_admin_chat') return wait({ userId:'U1', name:'小韋', mode:'真人', quota:{ used:9, limit:200 },
+    profile:{ member:{ plates:['NRR-9333'], model:'FORCE 2.0', name:'葉先生', phone:'0975063878', points:7, goal:10, lastAdd:'2026/10/02' },
+      bookings:[{ date:'2026-11-20', time:'14:00', kind:'時段', service:'換機油' }],
+      repairs:[{ date:'2026/10/02', km:'12500', amount:'1350', items:'機油、齒輪油' }] }, msgs:[
     { role:'客人', text:'FORCE 一代裝 FF2+ 多少', time:'11/17 13:18' },
     { role:'AI', text:'FORCE 1.0（一代）安裝 GJMS FF2 升級 FF2+ 完工價是 23000 元喔！', time:'11/17 13:18' },
     { role:'客人', text:'可以算便宜一點嗎', time:'11/17 13:20' },
