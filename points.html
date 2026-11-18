@@ -124,7 +124,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v9</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v10</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -229,8 +229,6 @@ function render() {
 
     ${needPlate ? '' : profileCard()}
 
-    <div class="card" id="repCard"><h2>我的保養紀錄</h2><div class="hint">讀取中…</div></div>
-
     <div class="card">
       <h2>最近紀錄</h2>
       ${logs.length ? logs.map(l => `<div class="log"><span>${esc(l.action)}${l.delta > 0 ? ' +' + l.delta : ''}${l.action === '兌換' ? '：' + esc(l.note) : ''}</span><span>${fmt(l.time)}</span></div>`).join('')
@@ -240,7 +238,6 @@ function render() {
 
   new QRCode($('#qr'), { text: 'WADEPT:' + m.code, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
 
-  loadRepairs();
   $('#refresh').onclick = () => load(true);
   if ($('#prof').tagName === 'DETAILS') $('#prof').ontoggle = () => { profOpen = $('#prof').open; };
   document.querySelectorAll('[data-plate]').forEach(b => b.onclick = () => selfAdd(b.dataset.plate));

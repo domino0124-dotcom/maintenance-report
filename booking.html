@@ -74,6 +74,7 @@
 <nav class="tabs">
   <button id="tabNew" class="tab on">新預約</button>
   <button id="tabMine" class="tab">我的預約</button>
+  <button id="tabRep" class="tab">保養紀錄</button>
 </nav>
 
 <main id="main">
@@ -125,6 +126,11 @@
     <div id="mineList"></div>
   </section>
 
+  <!-- 保養紀錄 -->
+  <section id="viewRep" class="hidden">
+    <div id="repList"></div>
+  </section>
+
   <!-- 完成 -->
   <section id="viewDone" class="hidden">
     <div class="done">
@@ -142,7 +148,7 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v3</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v4</div>
 
 <script>
 /* ====== 設定：換成你的 LIFF ID ====== */
@@ -238,9 +244,10 @@ async function api(type, data = {}){
 
 /* ---------- 畫面切換 ---------- */
 function show(view){
-  ['New','Mine','Done'].forEach(v => $('view'+v).classList.toggle('hidden', v.toLowerCase() !== view));
+  ['New','Mine','Rep','Done'].forEach(v => $('view'+v).classList.toggle('hidden', v.toLowerCase() !== view));
   $('tabNew').classList.toggle('on', view === 'new');
   $('tabMine').classList.toggle('on', view === 'mine');
+  $('tabRep').classList.toggle('on', view === 'rep');
   window.scrollTo(0, 0);
 }
 
@@ -523,9 +530,25 @@ async function loadProfile(){
   } catch (e){ st2.textContent = '車籍資料讀取失敗：' + e.message; }
 }
 
+/* ---------- 保養紀錄（店務系統結帳資料，只顯示自己的車，不含金額） ---------- */
+async function loadRep(){
+  $('repList').innerHTML = '<div class="empty">讀取中…</div>';
+  try {
+    const r = await api('booking_repairs');
+    if (r.noPlate){ $('repList').innerHTML = '<div class="empty">還沒有登記車號<br><small>預約時填好車號，或在集點卡填寫車籍資料後就能查詢</small></div>'; return; }
+    if (!r.visits.length){ $('repList').innerHTML = '<div class="empty">目前還沒有保養紀錄<br><small>結帳時有登記車號的才會出現</small></div>'; return; }
+    $('repList').innerHTML = r.visits.map(x => `
+      <div class="card">
+        <div class="bk-top"><b>${esc(x.date)}</b><span class="tag">${x.km ? esc(x.km) + ' km' : esc(x.plate)}</span></div>
+        <p class="hint">${(x.items || []).map(esc).join('、')}</p>
+      </div>`).join('') + '<p class="hint" style="text-align:center">顯示最近 5 次，需要完整紀錄可以問店家</p>';
+  } catch (e){ $('repList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
 /* ---------- 按鈕 ---------- */
 $('tabNew').onclick = () => show('new');
 $('tabMine').onclick = () => { show('mine'); loadMine(); };
+$('tabRep').onclick = () => { show('rep'); loadRep(); };
 $('editCancel').onclick = () => resetForm();
 $('doneMine').onclick = () => { show('mine'); loadMine(); };
 $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else show('new'); };
@@ -546,6 +569,7 @@ $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else
     loadProfile();
     // 網址帶 ?tab=mine 時，直接打開「我的預約」
     if (new URLSearchParams(location.search).get('tab') === 'mine'){ show('mine'); loadMine(); }
+    if (new URLSearchParams(location.search).get('tab') === 'rep'){ show('rep'); loadRep(); }
   } catch (e){
     loading(false);
     $('main').innerHTML = `<div class="empty">無法載入預約系統<br><small>${esc(e.message)}</small></div>`;
