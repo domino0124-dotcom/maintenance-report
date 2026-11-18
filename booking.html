@@ -141,6 +141,7 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:4px 0 8px">v2</div>
 
 <script>
 /* ====== 設定：換成你的 LIFF ID ====== */
@@ -514,7 +515,8 @@ function fillProfile(){
   } else box.classList.add('hidden');
 }
 async function loadProfile(){
-  try { const r = await api('booking_profile'); profile = r.profile; fillProfile(); } catch (e){}
+  try { const r = await api('booking_profile'); profile = r.profile; fillProfile(); }
+  catch (e){ toast('車籍資料讀取失敗：' + e.message); }
 }
 
 /* ---------- 按鈕 ---------- */
