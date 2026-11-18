@@ -124,7 +124,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v8</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v9</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -413,6 +413,13 @@ function openInLineApp() {
       profileMode = true;
       document.title = '韋德機車精品｜車籍資料';
       const cb = document.querySelector('.crumb b'); if (cb) cb.textContent = '車籍資料';
+      // 先要「傳送訊息」權限（預約頁也是這樣做），送出時才能自動把資料傳到聊天室
+      try {
+        if (liff.isInClient() && liff.permission) {
+          const pm = await liff.permission.query('chat_message.write');
+          if (pm && pm.state === 'prompt') await liff.permission.requestAll();
+        }
+      } catch (e) {}
     }
     if (q.get('add') === '1') {
       // 牆上 QR：網址參數用完就清掉，重新整理不會重複集

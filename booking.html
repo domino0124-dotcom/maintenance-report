@@ -112,6 +112,7 @@
       <label>電話<input id="fPhone" type="tel" inputmode="numeric" maxlength="12" placeholder="0912345678"></label>
       <label>車種<input id="fModel" maxlength="20" placeholder="例：JET SL、勁戰六代"></label>
       <label>車號<input id="fPlate" maxlength="12" autocapitalize="characters" placeholder="例：ABC-1234"></label>
+      <div id="plateChips" class="chips hidden" style="margin:-4px 0 10px"></div>
       <label>備註<textarea id="fNote" rows="2" maxlength="200" placeholder="例：指定機油品牌、輪胎尺寸"></textarea></label>
     </div>
 
@@ -470,7 +471,7 @@ function resetForm(){
   st = { mode: '', service: '', picks: [], desc: {}, date: '', time: '' };
   $('editBar').classList.add('hidden');
   $('fNote').value = '';
-  loadSaved(true);
+  loadSaved(true); fillProfile();
   renderServices(); renderDates();
   $('slotCard').classList.remove('hidden'); $('dropCard').classList.add('hidden');
   $('slots').innerHTML = ''; $('slotHint').textContent = '請先選擇日期';
@@ -490,6 +491,27 @@ function loadSaved(force){
   } catch (e){}
 }
 $('fPlate').addEventListener('blur', () => { $('fPlate').value = normPlate($('fPlate').value); });
+
+/* ---------- 自動帶入車籍資料（集點卡／車籍資料填過的） ---------- */
+let profile = null;
+function fillProfile(){
+  if (!profile) return;
+  if (!$('fName').value  && profile.name)  $('fName').value  = profile.name;
+  if (!$('fPhone').value && profile.phone) $('fPhone').value = profile.phone;
+  if (!$('fModel').value && profile.model) $('fModel').value = profile.model;
+  const ps = profile.plates || [];
+  if (!$('fPlate').value && ps.length) $('fPlate').value = ps[0];
+  // 有兩台以上的車：顯示按鈕讓客人點選這次是哪台
+  const box = $('plateChips');
+  if (ps.length > 1){
+    box.innerHTML = ps.map(p => `<button class="chip sm" data-p="${esc(p)}">${esc(p)}</button>`).join('');
+    box.classList.remove('hidden');
+    box.querySelectorAll('.chip').forEach(b => b.onclick = () => { $('fPlate').value = b.dataset.p; });
+  } else box.classList.add('hidden');
+}
+async function loadProfile(){
+  try { const r = await api('booking_profile'); profile = r.profile; fillProfile(); } catch (e){}
+}
 
 /* ---------- 按鈕 ---------- */
 $('tabNew').onclick = () => show('new');
@@ -511,6 +533,7 @@ $('doneClose').onclick = () => { if (liff.isInClient()) liff.closeWindow(); else
     cfg = await api('booking_config');
     renderServices(); renderDates(); updateSubmit();
     loading(false);
+    loadProfile();
     // 網址帶 ?tab=mine 時，直接打開「我的預約」
     if (new URLSearchParams(location.search).get('tab') === 'mine'){ show('mine'); loadMine(); }
   } catch (e){
