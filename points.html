@@ -124,7 +124,7 @@
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
 <div class="toast" id="toast"></div>
-<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v7</div>
+<div style="text-align:center;font-size:11px;color:#b0b5c0;padding:6px 0 16px">v8</div>
 
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
@@ -229,6 +229,8 @@ function render() {
 
     ${needPlate ? '' : profileCard()}
 
+    <div class="card" id="repCard"><h2>我的保養紀錄</h2><div class="hint">讀取中…</div></div>
+
     <div class="card">
       <h2>最近紀錄</h2>
       ${logs.length ? logs.map(l => `<div class="log"><span>${esc(l.action)}${l.delta > 0 ? ' +' + l.delta : ''}${l.action === '兌換' ? '：' + esc(l.note) : ''}</span><span>${fmt(l.time)}</span></div>`).join('')
@@ -238,10 +240,32 @@ function render() {
 
   new QRCode($('#qr'), { text: 'WADEPT:' + m.code, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
 
+  loadRepairs();
   $('#refresh').onclick = () => load(true);
   if ($('#prof').tagName === 'DETAILS') $('#prof').ontoggle = () => { profOpen = $('#prof').open; };
   document.querySelectorAll('[data-plate]').forEach(b => b.onclick = () => selfAdd(b.dataset.plate));
   bindProfile(ps);
+}
+
+// 保養紀錄（店務系統同步上來的，只顯示自己車牌的，不含金額）
+let repCache = null;
+async function loadRepairs() {
+  const box = $('#repCard'); if (!box) return;
+  const show = (j) => {
+    if (!$('#repCard')) return;
+    if (!j || j.off) { $('#repCard').remove(); return; }
+    const v = j.visits || [];
+    $('#repCard').innerHTML = '<h2>我的保養紀錄</h2>' + (v.length ? v.map(x => `
+      <div class="log" style="display:block">
+        <div style="display:flex;justify-content:space-between"><b>${esc(x.date)}</b>
+          <span style="color:var(--sub);font-size:13px">${x.km ? esc(x.km) + ' km' : ''}</span></div>
+        <div style="font-size:13px;color:var(--sub);margin-top:3px">${(x.items || []).map(esc).join('、')}</div>
+      </div>`).join('') + '<div class="hint" style="margin-top:8px">顯示最近 5 次，需要完整紀錄可以問店家</div>'
+      : '<div class="hint">目前還沒有保養紀錄（結帳時有登記車號的才會出現）</div>');
+  };
+  if (repCache) return show(repCache);
+  try { repCache = await api('myRepairs'); show(repCache); }
+  catch (e) { const b = $('#repCard'); if (b) b.remove(); }
 }
 
 function bindProfile(ps) {
@@ -257,7 +281,7 @@ function bindProfile(ps) {
     const btn = $('#save'); const label = btn.textContent; btn.disabled = true; btn.textContent = '送出中…';
     try {
       const j = await api('saveProfile', { name: $('#fName').value, phone: $('#fPhone').value, plates, model });
-      state.member = j.member; profOpen = false;
+      state.member = j.member; profOpen = false; repCache = null;
       if (profileMode) {
         // 用客人的名義在聊天室留一則訊息 → 聊天室就會出現，老闆可以直接回覆
         const m = j.member;
