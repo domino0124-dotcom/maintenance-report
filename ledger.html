@@ -1394,6 +1394,12 @@ function viewAi(hash) {
 window.addEventListener('resize', aiFit);
 window.addEventListener('hashchange', () => {
   if (location.hash === '#ai') { history.replaceState(null, '', location.pathname + location.search); go('ai'); }
+  if (location.hash === '#points') {
+    history.replaceState(null, '', location.pathname + location.search);
+    // LINE 裡用 LIFF 網址（可以開相機掃描）；電腦上直接開網頁，用店務帳的登入，不用再登一次
+    location.href = (window.liff && liff.isInClient()) ? POINTS_ADMIN
+      : 'https://domino0124-dotcom.github.io/maintenance-report/points-admin.html';
+  }
 });
 
 /* ================= 更多：集點＋所有後台工具 ================= */
@@ -1401,7 +1407,7 @@ const AI_ADMIN = 'https://domino0124-dotcom.github.io/maintenance-report/ai-admi
 const MORE_SECTIONS = [
   { title: '客人管理', items: [
     { icon: '🤖', name: 'AI 客服後台', note: '對話・轉真人・待補問題・知識庫', url: '#ai', hot: true },
-    { icon: '🎟️', name: '集點後台', note: '會員・加點・兌換', url: 'https://liff.line.me/2010744078-0uIoie4v', hot: true } ] },
+    { icon: '🎟️', name: '集點後台', note: '會員・加點・兌換', url: '#points', hot: true } ] },
   { title: '店務系統', items: [
     { icon: '⚡', name: '快速補登', note: '維修／銷售補登', url: 'http://wadegp.magicyuki.com:8080/M_P_invoice/invoice_fast.html', hot: true },
     { icon: '🖥️', name: '完整系統', note: '店務系統首頁', url: 'http://wadegp.magicyuki.com:8080/' } ] },
@@ -1483,11 +1489,25 @@ function go(t) {
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => go(b.dataset.tab));
 $('#month').onchange = () => go(tab);
 
+
+// ── 店務帳／集點後台共用登入（同一個 LINE 登入頻道），電腦上不用每個頁面都重登 ──
+const SHARED_TOKEN_KEY = 'wade_shared_idtoken';
+function sharedTokenSave(t) {
+  try { const d = liff.getDecodedIDToken(); if (t && d && d.exp) localStorage.setItem(SHARED_TOKEN_KEY, JSON.stringify({ t, exp: d.exp * 1000 })); } catch (e) {}
+}
+function sharedTokenGet() {
+  try { const o = JSON.parse(localStorage.getItem(SHARED_TOKEN_KEY) || 'null'); if (o && o.t && o.exp > Date.now() + 120000) return o.t; } catch (e) {}
+  return '';
+}
+
 (async () => {
   $('#month').value = thisMonth();
   $('#todayLbl').textContent = today().replace(/-/g, '.');
   try {
     await liff.init({ liffId: LIFF_ID });
+    const shared = (!liff.isInClient() && !liff.isLoggedIn()) ? sharedTokenGet() : '';
+    if (shared) idToken = shared;
+    else {
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
     // 電腦瀏覽器會記住舊的登入憑證，過期了就自動重新登入一次
     const dec = liff.getDecodedIDToken && liff.getDecodedIDToken();
@@ -1500,6 +1520,8 @@ $('#month').onchange = () => go(tab);
     }
     try { sessionStorage.removeItem('reLogin'); } catch (e) {}
     idToken = liff.getIDToken();
+    sharedTokenSave(idToken);
+    }
     cfg = await api('init');
     const startTab = new URLSearchParams(location.search).get('tab');
     go(['sum','tx','bill','shopee','ai','more'].includes(startTab) ? startTab : 'sum');

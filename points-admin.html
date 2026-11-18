@@ -116,7 +116,7 @@
 </head>
 <body>
 <header class="topbar"><div class="in">
-  <div class="crumb">WADE Moto<i>/</i><b>集點後台</b></div>
+  <div class="crumb"><a href="https://liff.line.me/2010744078-JVmXBk98" style="color:inherit;text-decoration:none">‹ 店務帳</a><i>/</i><b>集點後台</b></div>
   <div class="who"><span id="todayLbl"></span><div class="avatar">W</div></div>
 </div></header>
 <div class="wrap" id="app"><div class="center">載入中…</div></div>
@@ -360,10 +360,24 @@ async function doAdjust() {
 function closeSheet() { memberVer++; $('#sheet').classList.remove('show'); current = null; }
 $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
+
+// ── 店務帳／集點後台共用登入（同一個 LINE 登入頻道），電腦上不用每個頁面都重登 ──
+const SHARED_TOKEN_KEY = 'wade_shared_idtoken';
+function sharedTokenSave(t) {
+  try { const d = liff.getDecodedIDToken(); if (t && d && d.exp) localStorage.setItem(SHARED_TOKEN_KEY, JSON.stringify({ t, exp: d.exp * 1000 })); } catch (e) {}
+}
+function sharedTokenGet() {
+  try { const o = JSON.parse(localStorage.getItem(SHARED_TOKEN_KEY) || 'null'); if (o && o.t && o.exp > Date.now() + 120000) return o.t; } catch (e) {}
+  return '';
+}
+
 /* ---------- 啟動 ---------- */
 (async () => {
   try {
     await liff.init({ liffId: LIFF_ID });
+    const shared = (!liff.isInClient() && !liff.isLoggedIn()) ? sharedTokenGet() : '';
+    if (shared) idToken = shared;
+    else {
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
     // 電腦瀏覽器會記住舊的登入憑證，過期了就自動重新登入一次
     const dec = liff.getDecodedIDToken && liff.getDecodedIDToken();
@@ -376,6 +390,8 @@ $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeS
     }
     try { sessionStorage.removeItem('reLogin'); } catch (e) {}
     idToken = liff.getIDToken();
+    sharedTokenSave(idToken);
+    }
     // 先秀上次的資料（馬上看得到），背景再抓最新的
     try {
       const c = JSON.parse(localStorage.getItem('ptAdminCache') || 'null');
