@@ -1,6 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+<script data-ver="booking-admin-2">
+/* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
+(function () {
+  var me = document.currentScript.getAttribute('data-ver');
+  if (/[?&](code|liffClientId|liffRedirectUri)=/.test(location.search)) return;   // LINE 登入中，不要打斷
+  try { var last = +sessionStorage.getItem('verChk') || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem('verChk', Date.now()); } catch (e) {}
+  fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/data-ver="([^"]+)"/);
+    if (!m || m[1] === me) return;
+    var q = new URLSearchParams(location.search); q.set('v', m[1]);
+    location.replace(location.pathname + '?' + q.toString() + location.hash);
+  }).catch(function () {});
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
@@ -248,7 +263,7 @@
 <div id="loading" class="loading hidden"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v1</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v2</div>
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
 const WD = ['日','一','二','三','四','五','六'];

@@ -1,6 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+<script data-ver="pickup-form-4">
+/* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
+(function () {
+  var me = document.currentScript.getAttribute('data-ver');
+  if (/[?&](code|liffClientId|liffRedirectUri)=/.test(location.search)) return;   // LINE 登入中，不要打斷
+  try { var last = +sessionStorage.getItem('verChk') || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem('verChk', Date.now()); } catch (e) {}
+  fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/data-ver="([^"]+)"/);
+    if (!m || m[1] === me) return;
+    var q = new URLSearchParams(location.search); q.set('v', m[1]);
+    location.replace(location.pathname + '?' + q.toString() + location.hash);
+  }).catch(function () {});
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>拿貨登記｜韋德機車精品</title>
@@ -97,7 +112,7 @@
 <button class="btn main" id="send" disabled>送出登記</button>
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v2</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v4</div>
 <script>
 /* ====== 設定：換成新建立的 LIFF ID ====== */
 const LIFF_ID = '2010744078-pPtHEWpP';
@@ -225,9 +240,9 @@ $('send').onclick = async () => {
     setTimeout(() => liff.closeWindow(), 700);
   } catch (e){ toast(e.message || '送出失敗'); $('send').disabled = false; $('send').textContent = '送出登記'; }
 };
+// 看這個群組全部的登記（每個人分開列）
 $('listBtn').onclick = async () => {
-  const who = $('who').value.trim();
-  try { await sendText(who ? '查' + who : '查'); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+  try { await sendText('查'); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
 };
 $('delBtn').onclick = async () => {
   const n = prompt('要刪除第幾號？（看登記清單上的 [編號]）');
@@ -248,9 +263,8 @@ $('delBtn').onclick = async () => {
       const pm = await liff.permission.query('chat_message.write');
       if (pm && pm.state === 'prompt') await liff.permission.requestAll();
     }
-    if (!names.length) {
-      try { const p = await liff.getProfile(); if (p && p.displayName) { $('who').value = p.displayName.replace(/\s+/g, '').slice(0, 10); renderNames(); update(); } } catch (e) {}
-    }
+    // 預設帶上一次用的名字
+    if (names.length && !$('who').value) { $('who').value = names[0]; renderNames(); update(); }
   } catch (e){
     document.body.insertAdjacentHTML('afterbegin', `<div class="err">開啟失敗：${esc(e.message)}</div>`);
   }
