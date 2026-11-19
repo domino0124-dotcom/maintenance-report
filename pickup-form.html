@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拿貨登記｜韋德機車精品</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{--bg:#f2f3f6;--card:#fff;--ink:#151924;--sub:#7a8191;--line:#e7e9ee;--line2:#d9dce3;
+    --brand:#e36d3a;--brand-2:#c95726;--soft:#fdf0e9;--red:#d9363e;--dark:#161a24}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);
+    padding:0 0 calc(100px + env(safe-area-inset-bottom))}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  .top{background:var(--dark);color:#fff;padding:16px 18px 14px}
+  .top b{font-size:19px} .top small{display:block;font-size:12px;opacity:.6;margin-top:2px}
+  .wrap{max-width:520px;margin:0 auto;padding:14px 14px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
+  h2{font-size:15px;font-weight:800;margin-bottom:10px}
+  input{width:100%;padding:12px 14px;border:1px solid var(--line2);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;outline:none}
+  input:focus{border-color:var(--brand)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:8px 14px;font-size:15px}
+  .chip.on{border-color:var(--brand);background:var(--soft);color:var(--brand-2);font-weight:700}
+  .seg{display:flex;background:var(--bg);border-radius:12px;padding:3px}
+  .seg button{flex:1;border:0;background:none;border-radius:10px;padding:10px 0;font-size:15px;color:var(--sub)}
+  .seg button.on{background:#fff;color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .row input{flex:1}
+  .qty{display:flex;align-items:center;border:1px solid var(--line2);border-radius:12px;overflow:hidden;flex:0 0 auto}
+  .qty button{border:0;background:#f4f5f7;width:36px;height:44px;font-size:20px}
+  .qty span{width:30px;text-align:center;font-weight:700}
+  select.disc{flex:1;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;font-size:14px;background:#fafbfc;color:var(--ink);font-family:inherit}
+  .x{border:0;background:none;color:var(--sub);font-size:20px;width:28px}
+  .add{border:1px dashed var(--line2);background:none;border-radius:12px;width:100%;padding:11px;font-size:15px;color:var(--brand-2)}
+  .hint{font-size:13px;color:var(--sub);line-height:1.6;margin-top:8px}
+  .two{display:flex;gap:8px}
+  .two button{flex:1}
+  .btn{border:0;border-radius:14px;padding:13px;font-size:15px;font-weight:700;background:#eceef2}
+  .main{position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));max-width:492px;margin:0 auto;
+    background:var(--brand);color:#fff;font-size:17px;padding:16px;box-shadow:0 6px 16px rgba(227,109,58,.35)}
+  .main:disabled{background:#d6d3d1;box-shadow:none}
+  .preview{white-space:pre-wrap;background:var(--bg);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:10px}
+  .err{background:#fdecec;color:#9b1c22;border-radius:12px;padding:14px;margin:20px 14px}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 18px;
+    border-radius:999px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:9}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="top"><b>📦 拿貨登記</b><small>點一點就登記，會用你的名義傳到群組，機器人自動記錄</small></div>
+<div class="wrap" id="app">
+
+  <div class="card">
+    <h2>誰拿的</h2>
+    <input id="who" maxlength="10" placeholder="名字（不要有空格）">
+    <div class="chips" id="whoChips"></div>
+  </div>
+
+  <div class="card">
+    <h2>狀態</h2>
+    <div class="seg" id="stSeg">
+      <button data-s="取" class="on">已拿貨</button>
+      <button data-s="訂">訂購（還沒到）</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>品項</h2>
+    <div id="items"></div>
+    <button class="add" id="addRow">＋ 再加一項</button>
+    <div class="chips" id="itemChips"></div>
+    <div class="hint">下面是最近登記過的品項，點一下就加入</div>
+  </div>
+
+  <div class="card">
+    <h2>日期</h2>
+    <div class="seg" id="daySeg">
+      <button data-d="0" class="on">今天</button>
+      <button data-d="-1">昨天</button>
+      <button data-d="-2">前天</button>
+    </div>
+    <div class="preview" id="preview"></div>
+  </div>
+
+  <div class="card">
+    <h2>查詢・刪除</h2>
+    <div class="two">
+      <button class="btn" id="listBtn">📋 看登記清單</button>
+      <button class="btn" id="delBtn">🗑️ 刪除一筆</button>
+    </div>
+    <div class="hint">刪除要先看清單上的編號</div>
+  </div>
+</div>
+
+<button class="btn main" id="send" disabled>送出登記</button>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== 設定：換成新建立的 LIFF ID ====== */
+const LIFF_ID = 'REPLACE_WITH_LIFF_ID';
+/* ===================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tt; function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') || d; } catch (e) { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+let status = '取', dayOff = 0;
+let rows = [{ item: '', qty: 1, disc: '' }];
+const DISCOUNTS = ['', '95折', '9折', '85折', '8折', '75折', '7折', '同行價', '自訂…'];
+let names = load('pk_names', []);      // 最近用過的名字
+let recentItems = load('pk_items', []); // 最近登記過的品項
+
+/* ---------- 名字 ---------- */
+function renderNames(){
+  const cur = $('who').value.trim();
+  $('whoChips').innerHTML = names.map(n => `<button class="chip${n === cur ? ' on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('');
+  $('whoChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { $('who').value = b.dataset.n; renderNames(); update(); });
+}
+$('who').oninput = () => { $('who').value = $('who').value.replace(/\s+/g, ''); renderNames(); update(); };
+
+/* ---------- 狀態／日期 ---------- */
+function seg(id, cb){
+  $(id).querySelectorAll('button').forEach(b => b.onclick = () => {
+    $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b); update();
+  });
+}
+seg('stSeg', b => status = b.dataset.s);
+seg('daySeg', b => dayOff = +b.dataset.d);
+function md(off){ const d = new Date(); d.setDate(d.getDate() + off); return `${d.getMonth() + 1}/${d.getDate()}`; }
+
+/* ---------- 品項 ---------- */
+function renderRows(){
+  $('items').innerHTML = rows.map((r, i) => `
+    <div class="row">
+      <input data-i="${i}" value="${esc(r.item)}" placeholder="品項，例如 山葉紅機油">
+      <div class="qty"><button data-m="${i}">－</button><span>${r.qty}</span><button data-p="${i}">＋</button></div>
+      ${rows.length > 1 ? `<button class="x" data-x="${i}">✕</button>` : ''}
+    </div>
+    <div class="row" style="margin-top:-2px">
+      <select data-d="${i}" class="disc">${DISCOUNTS.map(d => `<option value="${esc(d)}"${(d === r.disc || (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc))) ? ' selected' : ''}>${d ? (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc) ? '折扣：' + esc(r.disc) : '折扣：' + d) : '沒有折扣'}</option>`).join('')}</select>
+    </div>`).join('');
+  $('items').querySelectorAll('input').forEach(inp => inp.oninput = () => { rows[inp.dataset.i].item = inp.value; update(); });
+  $('items').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const r = rows[b.dataset.m]; r.qty = Math.max(1, r.qty - 1); renderRows(); update(); });
+  $('items').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { rows[b.dataset.p].qty++; renderRows(); update(); });
+  $('items').querySelectorAll('select.disc').forEach(sel => sel.onchange = () => {
+    const r = rows[sel.dataset.d];
+    if (sel.value === '自訂…') {
+      const v = prompt('折扣或備註（例如：78折、送的、成本價）', r.disc || '');
+      r.disc = v ? v.trim().replace(/\s+/g, '').slice(0, 12) : '';
+    } else r.disc = sel.value;
+    renderRows(); update();
+  });
+  $('items').querySelectorAll('[data-x]').forEach(b => b.onclick = () => { rows.splice(+b.dataset.x, 1); renderRows(); update(); });
+}
+$('addRow').onclick = () => { rows.push({ item: '', qty: 1, disc: '' }); renderRows(); update(); const all = $('items').querySelectorAll('input'); all[all.length - 1].focus(); };
+function renderItemChips(){
+  $('itemChips').innerHTML = recentItems.slice(0, 12).map(n => `<button class="chip" data-t="${esc(n)}">${esc(n)}</button>`).join('');
+  $('itemChips').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const empty = rows.find(r => !r.item.trim());
+    if (empty) empty.item = b.dataset.t; else rows.push({ item: b.dataset.t, qty: 1, disc: '' });
+    renderRows(); update();
+  });
+}
+
+/* ---------- 組成機器人看得懂的格式 ---------- */
+// 小明 取
+// 11/19 山葉紅機油 x2
+function buildText(){
+  const who = $('who').value.trim();
+  const list = rows.filter(r => r.item.trim());
+  if (!who || !list.length) return '';
+  const date = md(dayOff);
+  return who + ' ' + status + '\n' + list.map(r => `${date} ${r.item.trim().replace(/\s+/g, ' ')}${r.disc ? '（' + r.disc + '）' : ''}${r.qty > 1 ? ' x' + r.qty : ''}`).join('\n');
+}
+function update(){
+  const t = buildText();
+  $('preview').textContent = t ? '會送出：\n' + t : '填好名字和品項後，這裡會顯示要送出的內容';
+  $('send').disabled = !t;
+}
+
+/* ---------- 傳到聊天室 ---------- */
+async function sendText(text){
+  if (!liff.isInClient()) throw new Error('請從 LINE 群組的功能選單打開');
+  await liff.sendMessages([{ type: 'text', text }]);
+}
+$('send').onclick = async () => {
+  const text = buildText(); if (!text) return;
+  $('send').disabled = true; $('send').textContent = '送出中…';
+  try {
+    await sendText(text);
+    const who = $('who').value.trim();
+    names = [who, ...names.filter(n => n !== who)].slice(0, 10); save('pk_names', names);
+    rows.forEach(r => { const n = r.item.trim(); if (n) recentItems = [n, ...recentItems.filter(x => x !== n)]; });
+    recentItems = recentItems.slice(0, 30); save('pk_items', recentItems);
+    toast('已送出，機器人會回覆登記結果');
+    setTimeout(() => liff.closeWindow(), 700);
+  } catch (e){ toast(e.message || '送出失敗'); $('send').disabled = false; $('send').textContent = '送出登記'; }
+};
+$('listBtn').onclick = async () => {
+  const who = $('who').value.trim();
+  try { await sendText(who ? '查' + who : '查'); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+};
+$('delBtn').onclick = async () => {
+  const n = prompt('要刪除第幾號？（看登記清單上的 [編號]）');
+  if (n === null) return;
+  const num = String(n).replace(/[^\d]/g, '');
+  if (!num) return toast('請輸入編號數字');
+  if (!confirm(`確定刪除第 ${num} 筆？`)) return;
+  try { await sendText('刪 ' + num); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+};
+
+/* ---------- 啟動 ---------- */
+(async () => {
+  renderNames(); renderRows(); renderItemChips(); update();
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    if (liff.isInClient() && liff.permission) {
+      const pm = await liff.permission.query('chat_message.write');
+      if (pm && pm.state === 'prompt') await liff.permission.requestAll();
+    }
+    if (!names.length) {
+      try { const p = await liff.getProfile(); if (p && p.displayName) { $('who').value = p.displayName.replace(/\s+/g, '').slice(0, 10); renderNames(); update(); } } catch (e) {}
+    }
+  } catch (e){
+    document.body.insertAdjacentHTML('afterbegin', `<div class="err">開啟失敗：${esc(e.message)}</div>`);
+  }
+})();
+</script>
+</body>
+</html>
