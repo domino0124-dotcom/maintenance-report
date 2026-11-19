@@ -237,6 +237,7 @@
     #view.grid > .hero, #view.grid > .stats, #view.grid > .full{grid-column:1 / -1}
     #view.grid > .stats{margin-bottom:0}
   }
+  html,body{overscroll-behavior-y:none}
 </style>
 </head>
 <body>
@@ -283,7 +284,7 @@ const PAY_METHODS = ['現金', '轉帳', '刷卡', 'LINE Pay'];
 /* ============================== */
 
 const SHOP_COLORS = ['#e4703c', '#2563eb', '#16a34a', '#9333ea', '#db2777', '#0891b2', '#ca8a04', '#64748b'];
-let idToken = '', tab = 'sum', cfg = { incomeCats: [], expenseCats: [], vendors: [], shops: [] };
+let idToken = '', tab = 'sum', cfg = { incomeCats: [], expenseCats: [], vendors: [], shops: [] }, cfgReady = null;
 const form = { type: '收入', cat: '', method: '現金', mode: 'daily' };
 const billForm = { type: '月結' };
 let parsed = null; // 蝦皮報表解析結果
@@ -327,10 +328,19 @@ function loading(){ $('#view').innerHTML = '<div class="center">載入中…</di
 function fail(e){ $('#view').innerHTML = `<div class="err">${esc(e.message)}</div><button class="btn main block" onclick="go(tab)">重試</button>`; }
 
 /* ================= 總覽 ================= */
+// 加速：先秀這支手機上次看到的數字，背景再抓最新的
 async function viewSum() {
-  loading();
+  const m = month(), key = 'sumCache_' + m;
+  let cached = null; try { cached = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+  if (cached) renderSum(cached); else loading();
   try {
-    const s = await api('summary', { month: month() });
+    const s = await api('summary', { month: m });
+    try { localStorage.setItem(key, JSON.stringify(s)); } catch (e) {}
+    if (tab === 'sum' && month() === m) renderSum(s);
+  } catch (e) { if (!cached) fail(e); else toast('⚠️ 沒有更新到最新：' + e.message); }
+}
+function renderSum(s) {
+  {
     const fee = Number(lsGet('shopeeFee', '0')) || 0;
     const shopeeNet = s.shopee.total * (1 - fee / 100);
     const net = s.store.incomeTotal + shopeeNet - s.store.expenseTotal - s.bills.total;
@@ -383,7 +393,7 @@ async function viewSum() {
     $('#goBill').onclick = () => go('bill');
     if ($('#goUnpaid')) $('#goUnpaid').onclick = () => go('bill');
     $('#fee').onchange = e => { lsSet('shopeeFee', e.target.value || '0'); viewSum(); };
-  } catch (e) { fail(e); }
+  }
 }
 
 /* ================= 記帳 ================= */
@@ -1440,10 +1450,20 @@ async function viewMore() {
     <div class="card full" id="ptCard"><h2>換機油集點</h2>
       <div class="hint">讀取中…</div></div>
     ${MORE_SECTIONS.map(linkCard).join('')}`;
+  let cached = null; try { cached = JSON.parse(localStorage.getItem('ptListCache') || 'null'); } catch (e) {}
+  if (cached) renderPtCard(cached);
   try {
     const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ pt_action: 'list', idToken }) }).then(r => r.json());
     if (!res.ok) throw new Error(res.error || '讀取失敗');
+    try { localStorage.setItem('ptListCache', JSON.stringify({ members: res.members, recent: (res.recent || []).slice(0, 5), stats: res.stats })); } catch (e) {}
+    if (tab === 'more' && $('#ptCard')) renderPtCard(res);
+  } catch (e) {
+    if (!cached && $('#ptCard')) $('#ptCard').innerHTML = `<h2>換機油集點</h2><div class="hint">${esc(e.message)}</div>`;
+  }
+}
+function renderPtCard(res) {
+  {
     const mStart = new Date(); mStart.setDate(1); mStart.setHours(0, 0, 0, 0);
     const monthCnt = res.members.filter(m => m.lastAdd >= mStart.getTime()).length;
     const full = res.members.filter(m => m.full);
@@ -1459,8 +1479,6 @@ async function viewMore() {
       ${full.length ? `<div class="hint" style="margin:6px 0 2px"><b>可兌換：</b>${full.map(m => esc((m.name || m.lineName) + (m.plate ? ' ' + m.plate.split(',')[0] : ''))).join('、')}</div>` : ''}
       ${recent.length ? recent.map(r => `<div class="line"><span>${esc(who(r))}${(r.note || '').includes('｜') ? ' <span class="s">' + esc(r.note.split('｜')[1]) + '</span>' : ''}</span>
         <span class="s">${esc(r.action)} · ${new Date(r.time).getMonth() + 1}/${new Date(r.time).getDate()}</span></div>`).join('') : '<div class="hint">還沒有人集點</div>'}`;
-  } catch (e) {
-    $('#ptCard').innerHTML = `<h2>換機油集點</h2><div class="hint">${esc(e.message)}</div>`;
   }
 }
 
@@ -1475,6 +1493,7 @@ const TITLES = {
 };
 function go(t) {
   tab = t;
+  try { sessionStorage.setItem('ledgerTab', t); } catch (e) {}
   $('#title').textContent = TITLES[t][0];
   $('#subtitle').textContent = TITLES[t][1];
   $('#crumb').textContent = TITLES[t][0];
@@ -1482,7 +1501,10 @@ function go(t) {
   $('#view').className = (t === 'sum' || t === 'shopee' || t === 'more') ? 'grid' : (t === 'tx' || t === 'bill') ? 'cols' : '';
   $('#month').style.visibility = t === 'more' ? 'hidden' : 'visible';
   document.querySelector('main.wrap > .head').style.display = t === 'ai' ? 'none' : '';
-  const p = ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee, more: viewMore, ai: viewAi })[t]();
+  const fn = ({ sum: viewSum, tx: viewTx, bill: viewBill, shopee: viewShopee, more: viewMore, ai: viewAi })[t];
+  const needCfg = t === 'tx' || t === 'bill' || t === 'shopee';
+  if (needCfg && cfgReady) loading();
+  const p = (needCfg && cfgReady) ? cfgReady.then(() => { if (tab === t) return fn(); }, () => fn()) : fn();
   if (t === 'sum') Promise.resolve(p).then(pkSumAlert).then(aiSumAlert);
   window.scrollTo(0, 0);
 }
@@ -1522,8 +1544,11 @@ function sharedTokenGet() {
     idToken = liff.getIDToken();
     sharedTokenSave(idToken);
     }
-    cfg = await api('init');
-    const startTab = new URLSearchParams(location.search).get('tab');
+    // 不用等設定（類別、廠商清單）就先開畫面；記帳／帳款／蝦皮才需要等設定
+    cfgReady = api('init').then(c => { cfg = c; return c; });
+    cfgReady.catch(e => toast('設定讀取失敗：' + e.message));
+    let startTab = new URLSearchParams(location.search).get('tab');
+    if (!startTab) { try { startTab = sessionStorage.getItem('ledgerTab'); } catch (e) {} }
     go(['sum','tx','bill','shopee','ai','more'].includes(startTab) ? startTab : 'sum');
     if (pkKey && !pkData) pkLoad().catch(() => {});   // 先抓取件數量，下方「蝦皮」顯示紅點
   } catch (e) {
