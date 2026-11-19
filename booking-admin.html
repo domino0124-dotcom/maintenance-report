@@ -291,8 +291,15 @@ async function doLogin(){
     $('loginView').classList.add('hidden');
     $('appView').classList.remove('hidden');
     await load();
+    startTab();
   } catch (e){ if (e.message !== 'LOGIN_REQUIRED') toast(e.message); }
   finally { loading(false); }
+}
+// 網址帶 ?tab=sched（LINE 功能選單「新增行程」）→ 直接打開我的行程
+function startTab(){
+  const t = new URLSearchParams(location.search).get('tab');
+  if (t === 'sched'){ showTab('sched'); openSched(); setTimeout(() => $('sTitle').focus(), 300); }
+  else if (t === 'close') showTab('close');
 }
 $('loginBtn').onclick = doLogin;
 $('pw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
@@ -658,6 +665,7 @@ $('nSubmit').onclick = async () => {
   if (!token) return showLogin();
   $('appView').classList.remove('hidden');
   load();
+  startTab();
 })();
 
 // 回到畫面時自動更新
