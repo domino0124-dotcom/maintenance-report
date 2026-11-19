@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="booking-admin-7">
+<script data-ver="booking-admin-8">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -265,7 +265,7 @@
 <div id="loading" class="loading hidden"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v7</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v8</div>
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
 const WD = ['日','一','二','三','四','五','六'];
@@ -810,7 +810,7 @@ $('soundBtn').onclick = () => {
   soundMode = SOUNDS[(idx + 1) % SOUNDS.length].k; soundOn = soundMode !== 'off';
   try { localStorage.setItem('bk_alert_sound2', soundMode); } catch (e){}
   $('soundBtn').textContent = SOUNDS.find(x => x.k === soundMode).label;
-  if (soundOn){ try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e){} beep('有新預約，明天下午一點半，換機油'); }
+  if (soundOn){ try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e){} beep('這是測試聲音，有新預約的時候會像這樣提醒你'); }
   toast(soundOn ? '試播中：' + SOUNDS.find(x => x.k === soundMode).label + '（再按一下換下一種）' : '已改成無聲，只有畫面和通知');
 };
 $('alertBtn').onclick = async () => {
