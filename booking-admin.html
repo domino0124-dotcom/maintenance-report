@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="booking-admin-2">
+<script data-ver="booking-admin-5">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -137,6 +137,8 @@
       <div class="sub" id="updated">韋德機車精品</div>
     </div>
     <div class="topbtns">
+      <button class="ghost" id="alertBtn">🔕 提醒關</button>
+      <button class="ghost hidden" id="soundBtn">🔇 無聲</button>
       <button class="ghost" id="refreshBtn">↻ 重新整理</button>
       <button class="ghost" id="logoutBtn">登出</button>
     </div>
@@ -263,7 +265,7 @@
 <div id="loading" class="loading hidden"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v2</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v5</div>
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
 const WD = ['日','一','二','三','四','五','六'];
@@ -279,11 +281,21 @@ function addDays(d, n){ const [y,m,dd] = d.split('-').map(Number); return new Da
 function getTok(){ try { return localStorage.getItem('wade_admin_token') || ''; } catch(e){ return ''; } }
 function setTok(t){ try { t ? localStorage.setItem('wade_admin_token', t) : localStorage.removeItem('wade_admin_token'); } catch(e){} }
 
-async function api(type, payload = {}){
+async function api(type, payload = {}, retried){
   const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ type, token, ...payload }) });
   const j = await res.json();
   if (!j.ok){
-    if (j.error === 'LOGIN_REQUIRED'){ showLogin('登入已過期，請重新登入'); throw new Error('LOGIN_REQUIRED'); }
+    if (j.error === 'LOGIN_REQUIRED'){
+      // 提醒模式（電腦一直開著）：登入過期就用這台電腦記住的密碼自動重新登入
+      const pw = alertPw();
+      if (!retried && pw && type !== 'booking_admin_login'){
+        try {
+          const r = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ type: 'booking_admin_login', password: pw }) }).then(x => x.json());
+          if (r.ok){ token = r.token; setTok(token); return api(type, payload, true); }
+        } catch (e){}
+      }
+      showLogin('登入已過期，請重新登入'); throw new Error('LOGIN_REQUIRED');
+    }
     throw new Error(j.error || '發生錯誤');
   }
   return j;
@@ -673,6 +685,106 @@ $('nSubmit').onclick = async () => {
   finally { loading(false); }
 };
 
+/* ---------- 🔔 新預約提醒（電腦開著這頁就會響） ---------- */
+// 每 30 秒檢查一次；有新預約 → 叮咚一聲＋紅色橫幅＋桌面通知（橫幅按「知道了」才收起來）
+const ALERT_KEY = 'bk_alert_on', SEEN_KEY = 'bk_seen_ids', PW_KEY = 'bk_alert_pw';
+let alertOn = false, audioCtx = null, ringTimer = null, titleTimer = null, pollTimer = null;
+function alertPw(){ try { return localStorage.getItem(PW_KEY) || ''; } catch (e){ return ''; } }
+function getSeen(){ try { return JSON.parse(localStorage.getItem(SEEN_KEY) || 'null'); } catch (e){ return null; } }
+function setSeen(ids){ try { localStorage.setItem(SEEN_KEY, JSON.stringify(ids)); } catch (e){} }
+
+// 柔和的「叮咚」（像門鈴），不是刺耳的嗶嗶聲
+let soundOn = false;
+try { soundOn = localStorage.getItem('bk_alert_sound') === '1'; } catch (e){}
+function beep(){
+  if (!audioCtx || !soundOn) return;
+  [[0, 988], [0.45, 784]].forEach(([t, f]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 1.1);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 1.15);
+  });
+}
+function ring(title, lines){
+  // 紅色橫幅
+  let bar = $('alertBar');
+  if (!bar){
+    bar = document.createElement('div'); bar.id = 'alertBar';
+    bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:50;background:#dc2626;color:#fff;padding:14px 16px;box-shadow:0 6px 20px rgba(0,0,0,.25)';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `<div style="max-width:600px;margin:0 auto"><div style="font-size:18px;font-weight:800">🔔 ${esc(title)}</div>
+    <div style="font-size:15px;line-height:1.6;margin-top:6px;white-space:pre-line">${esc(lines.join('\n'))}</div>
+    <button id="ackBtn" style="margin-top:10px;width:100%;border:0;border-radius:10px;padding:12px;font-size:16px;font-weight:700;background:#fff;color:#dc2626">知道了</button></div>`;
+  $('ackBtn').onclick = stopRing;
+  // 叮咚一聲就好（不會一直響）；紅色橫幅和通知會留著，等你按「知道了」
+  clearInterval(ringTimer); beep();
+  // 分頁標題閃
+  clearInterval(titleTimer); let f = false;
+  titleTimer = setInterval(() => { document.title = (f = !f) ? '🔔 ' + title + '！' : '預約後台｜韋德機車精品'; }, 1000);
+  // 桌面通知（電腦右下角）
+  try { if (window.Notification && Notification.permission === 'granted') new Notification('🔔 ' + title, { body: lines.join('\n'), requireInteraction: true, silent: !soundOn }); } catch (e){}
+}
+function stopRing(){
+  clearInterval(ringTimer); clearInterval(titleTimer);
+  document.title = '預約後台｜韋德機車精品';
+  const bar = $('alertBar'); if (bar) bar.remove();
+}
+function bkLine(b){ return `${md(b.date)}（${WD[wdOf(b.date)]}）${b.kind === '留車' ? '留車' : b.time}　${b.service}｜${[b.name, b.phone].filter(Boolean).join(' ')}`; }
+function checkNew(){
+  if (!alertOn || !data || !data.list) return;
+  // 記住每筆預約的「日期 時間」：新出現 → 新預約；日期時間變了 → 客人改期
+  const now = {}; data.list.forEach(b => { now[b.id] = b.date + ' ' + (b.time || ''); });
+  let seen = getSeen();
+  if (!seen || Array.isArray(seen)){ setSeen(now); return; }   // 第一次：現有的都當作看過了
+  const added = data.list.filter(b => !(b.id in seen));
+  const moved = data.list.filter(b => (b.id in seen) && seen[b.id] !== now[b.id]);
+  setSeen(now);
+  const lines = [...added.map(b => '🆕 ' + bkLine(b)), ...moved.map(b => '🔄 改期：' + bkLine(b))];
+  if (lines.length) ring(added.length ? `新預約 ${added.length} 筆` + (moved.length ? `、改期 ${moved.length} 筆` : '') : `客人改期 ${moved.length} 筆`, lines);
+}
+function setAlert(on){
+  alertOn = on;
+  try { localStorage.setItem(ALERT_KEY, on ? '1' : ''); } catch (e){}
+  $('alertBtn').textContent = on ? '🔔 提醒開' : '🔕 提醒關';
+  $('soundBtn').classList.toggle('hidden', !on);
+  $('soundBtn').textContent = soundOn ? '🔈 叮咚' : '🔇 無聲';
+  $('alertBtn').style.background = on ? '#16a34a' : '';
+  clearInterval(pollTimer);
+  if (on){
+    pollTimer = setInterval(() => { if (token) load(true).then(checkNew); }, 30000);
+    if (data) checkNew();
+  }
+}
+// 聲音預設關（電腦在放音樂）；只要畫面提醒＋右下角通知。想要聲音再按這顆打開
+$('soundBtn').onclick = () => {
+  soundOn = !soundOn;
+  try { localStorage.setItem('bk_alert_sound', soundOn ? '1' : ''); } catch (e){}
+  $('soundBtn').textContent = soundOn ? '🔈 叮咚' : '🔇 無聲';
+  if (soundOn){ try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e){} beep(); }
+  toast(soundOn ? '有新預約會叮咚一聲' : '已改成無聲，只有畫面和通知');
+};
+$('alertBtn').onclick = async () => {
+  if (alertOn){ setAlert(false); stopRing(); toast('已關閉新預約提醒'); return; }
+  // 需要按一下才能開聲音和桌面通知（瀏覽器規定）
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); await audioCtx.resume(); } catch (e){}
+  try { if (window.Notification && Notification.permission === 'default') await Notification.requestPermission(); } catch (e){}
+  if (!alertPw() && confirm('這台電腦要一直開著提醒的話，要記住後台密碼嗎？\n（登入過期時會自動重新登入，不會中斷提醒）')){
+    const pw = prompt('請輸入預約後台密碼');
+    if (pw) try { localStorage.setItem(PW_KEY, pw); } catch (e){}
+  }
+  setSeen(null); try { localStorage.removeItem(SEEN_KEY); } catch (e){}
+  setAlert(true);
+  toast('🔔 已開啟：有新預約會跳紅色橫幅＋右下角通知（預設無聲）。這個分頁不要關');
+};
+// 重新整理頁面後，提醒維持開著（聲音要再點一下畫面才會恢復，瀏覽器規定）
+document.addEventListener('click', () => {
+  if (alertOn && !audioCtx){ try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e){} }
+}, { once: false });
+
 /* ---------- 啟動 ---------- */
 (function init(){
   const t = new Date();
@@ -680,7 +792,7 @@ $('nSubmit').onclick = async () => {
   token = getTok();
   if (!token) return showLogin();
   $('appView').classList.remove('hidden');
-  load();
+  load().then(() => { try { if (localStorage.getItem(ALERT_KEY)) { setAlert(true); toast(soundOn ? '🔔 提醒開著，點一下畫面讓聲音生效' : '🔔 提醒開著'); } } catch (e){} });
   startTab();
 })();
 
