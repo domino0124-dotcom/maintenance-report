@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="ledger-2">
+<script data-ver="ledger-3">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -278,7 +278,7 @@
 
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v2</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v3</div>
 <script>
 /* ====== 設定（部署前填好）====== */
 const LIFF_ID = '2010744078-JVmXBk98';
@@ -1438,7 +1438,8 @@ const MORE_SECTIONS = [
     { icon: '⚡', name: '快速補登', note: '維修／銷售補登', url: 'http://wadegp.magicyuki.com:8080/M_P_invoice/invoice_fast.html', hot: true },
     { icon: '🖥️', name: '完整系統', note: '店務系統首頁', url: 'http://wadegp.magicyuki.com:8080/' } ] },
   { title: '線上預約', items: [
-    { icon: '📅', name: '預約後台', note: '查看・管理預約', url: 'https://domino0124-dotcom.github.io/maintenance-report/booking-admin.html' },
+    { icon: '📅', name: '預約後台（我的）', note: '有「我的行程」・A 電腦／手機', url: 'https://domino0124-dotcom.github.io/maintenance-report/booking-admin.html?tab=sched' },
+    { icon: '🖥️', name: '預約後台（店裡）', note: '隱藏我的行程・B 電腦', url: 'https://domino0124-dotcom.github.io/maintenance-report/booking-admin.html?tab=nosched' },
     { icon: '🙋', name: '客人預約頁', note: '測試用', url: 'https://liff.line.me/2010744078-CKxuCGOl' } ] },
   { title: '官網商城', items: [
     { icon: '🛒', name: '商城前台', note: '客人看到的購物車', url: 'https://domino0124-dotcom.github.io/shop/' },
