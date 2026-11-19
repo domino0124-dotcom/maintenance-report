@@ -1356,7 +1356,7 @@ async function aiSumAlert() {
   let d;
   try {
     d = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type: 'ai_admin_overview', pw }) }).then(r => r.json());
+      body: JSON.stringify({ type: 'ai_admin_badge', pw }) }).then(r => r.json());
   } catch (e) { return; }
   if (!d || !d.ok || tab !== 'sum' || !$('#view') || $('#aiAlert')) return;
   const n = d.humans.length, q = d.todoCount;
