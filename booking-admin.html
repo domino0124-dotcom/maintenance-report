@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="booking-admin-5">
+<script data-ver="booking-admin-6">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -265,7 +265,7 @@
 <div id="loading" class="loading hidden"><div class="spin"></div><div id="loadingText">載入中…</div></div>
 <div id="toast" class="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v5</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">booking-admin v6</div>
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzd7nyjqzMbGH1WUxBBNqbCrVibCmZEPAMzaGPtkuF0n8TR_Zsovu-7aYM02SGTmPV4UQ/exec';
 const WD = ['日','一','二','三','四','五','六'];
@@ -686,7 +686,7 @@ $('nSubmit').onclick = async () => {
 };
 
 /* ---------- 🔔 新預約提醒（電腦開著這頁就會響） ---------- */
-// 每 30 秒檢查一次；有新預約 → 叮咚一聲＋紅色橫幅＋桌面通知（橫幅按「知道了」才收起來）
+// 每 1 分鐘檢查一次（只在營業時間）；有新預約 → 叮咚一聲＋紅色橫幅＋桌面通知（橫幅按「知道了」才收起來）
 const ALERT_KEY = 'bk_alert_on', SEEN_KEY = 'bk_seen_ids', PW_KEY = 'bk_alert_pw';
 let alertOn = false, audioCtx = null, ringTimer = null, titleTimer = null, pollTimer = null;
 function alertPw(){ try { return localStorage.getItem(PW_KEY) || ''; } catch (e){ return ''; } }
@@ -755,7 +755,11 @@ function setAlert(on){
   $('alertBtn').style.background = on ? '#16a34a' : '';
   clearInterval(pollTimer);
   if (on){
-    pollTimer = setInterval(() => { if (token) load(true).then(checkNew); }, 30000);
+    // 1 分鐘檢查一次，只在營業時間（12:00～22:30）檢查；晚上客人預約的，隔天開店第一次檢查就會跳出來
+    pollTimer = setInterval(() => {
+      const h = new Date().getHours() + new Date().getMinutes() / 60;
+      if (token && h >= 12 && h <= 22.5) load(true).then(checkNew);
+    }, 60000);
     if (data) checkNew();
   }
 }
