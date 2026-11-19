@@ -332,9 +332,10 @@ document.getElementById("btnSettleQuery").addEventListener("click", async ()=>{
     if(data.diff === 0){
       settleText = "雙方打平，不用互相付款";
     }else if(data.diff > 0){
-      settleText = data.name2 + " 要給 " + data.name1 + " $" + data.diff;
+      // 拿比較多的人，把差額補給對方（例：韋德 1000、TH 500 → 韋德要給 TH 500）
+      settleText = data.name1 + " 要給 " + data.name2 + " $" + data.diff;
     }else{
-      settleText = data.name1 + " 要給 " + data.name2 + " $" + Math.abs(data.diff);
+      settleText = data.name2 + " 要給 " + data.name1 + " $" + Math.abs(data.diff);
     }
     document.getElementById("settleLine").textContent = "✅ " + settleText;
 
