@@ -30,7 +30,8 @@
   .qty{display:flex;align-items:center;border:1px solid var(--line2);border-radius:12px;overflow:hidden;flex:0 0 auto}
   .qty button{border:0;background:#f4f5f7;width:36px;height:44px;font-size:20px}
   .qty span{width:30px;text-align:center;font-weight:700}
-  select.disc{flex:1;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;font-size:14px;background:#fafbfc;color:var(--ink);font-family:inherit}
+  input.sm{flex:1;min-width:0;padding:9px 10px;font-size:14px;border-radius:10px}
+  select.disc{flex:1.2;min-width:0;padding:9px 8px;border:1px solid var(--line2);border-radius:10px;font-size:14px;background:#fafbfc;color:var(--ink);font-family:inherit}
   .x{border:0;background:none;color:var(--sub);font-size:20px;width:28px}
   .add{border:1px dashed var(--line2);background:none;border-radius:12px;width:100%;padding:11px;font-size:15px;color:var(--brand-2)}
   .hint{font-size:13px;color:var(--sub);line-height:1.6;margin-top:8px}
@@ -107,7 +108,7 @@ const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'nul
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
 let status = '取', dayOff = 0;
-let rows = [{ item: '', qty: 1, disc: '' }];
+let rows = [];
 const DISCOUNTS = ['', '95折', '9折', '85折', '8折', '75折', '7折', '同行價', '自訂…'];
 let names = load('pk_names', []);      // 最近用過的名字
 let recentItems = load('pk_items', []); // 最近登記過的品項
@@ -131,48 +132,73 @@ seg('daySeg', b => dayOff = +b.dataset.d);
 function md(off){ const d = new Date(); d.setDate(d.getDate() + off); return `${d.getMonth() + 1}/${d.getDate()}`; }
 
 /* ---------- 品項 ---------- */
+function newRow(item){ return { item: item || '', qty: 1, disc: '', price: '', amount: '', amtEdited: false }; }
+rows = [newRow()];
+// 「8折」→ 0.8、「85折」→ 0.85；同行價、自訂文字算不出倍率 → null
+function rateOf(d){ const m = String(d || '').match(/^(\d{1,2})折$/); if (!m) return null; return m[1].length === 1 ? +m[1] / 10 : +m[1] / 100; }
+// 自動算金額（單價 × 數量 × 折扣），並組出備註（跟你手寫的格式一樣：$15×20×0.8）
+function calc(r){
+  const price = Number(String(r.price).replace(/,/g, '')) || 0;
+  const rate = r.disc ? rateOf(r.disc) : 1;
+  if (!r.amtEdited) r.amount = (price && rate != null) ? String(Math.round(price * r.qty * rate)) : '';
+  if (!price) return r.disc || '';
+  if (!r.disc && r.qty <= 1) return '';
+  return '$' + price + (r.qty > 1 ? '×' + r.qty : '') + (r.disc ? (rate != null ? '×' + rate : ' ' + r.disc) : '');
+}
 function renderRows(){
-  $('items').innerHTML = rows.map((r, i) => `
+  $('items').innerHTML = rows.map((r, i) => {
+    const note = calc(r);
+    return `
     <div class="row">
-      <input data-i="${i}" value="${esc(r.item)}" placeholder="品項，例如 山葉紅機油">
+      <input data-i="${i}" value="${esc(r.item)}" placeholder="品項，例如 POSH M6墊片凹">
       <div class="qty"><button data-m="${i}">－</button><span>${r.qty}</span><button data-p="${i}">＋</button></div>
       ${rows.length > 1 ? `<button class="x" data-x="${i}">✕</button>` : ''}
     </div>
     <div class="row" style="margin-top:-2px">
-      <select data-d="${i}" class="disc">${DISCOUNTS.map(d => `<option value="${esc(d)}"${(d === r.disc || (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc))) ? ' selected' : ''}>${d ? (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc) ? '折扣：' + esc(r.disc) : '折扣：' + d) : '沒有折扣'}</option>`).join('')}</select>
-    </div>`).join('');
-  $('items').querySelectorAll('input').forEach(inp => inp.oninput = () => { rows[inp.dataset.i].item = inp.value; update(); });
-  $('items').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const r = rows[b.dataset.m]; r.qty = Math.max(1, r.qty - 1); renderRows(); update(); });
-  $('items').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { rows[b.dataset.p].qty++; renderRows(); update(); });
-  $('items').querySelectorAll('select.disc').forEach(sel => sel.onchange = () => {
+      <input class="sm" data-pr="${i}" value="${esc(r.price)}" inputmode="decimal" placeholder="單價">
+      <select data-d="${i}" class="disc">${DISCOUNTS.map(d => `<option value="${esc(d)}"${(d === r.disc || (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc))) ? ' selected' : ''}>${d ? (d === '自訂…' && r.disc && !DISCOUNTS.includes(r.disc) ? esc(r.disc) : d) : '無折扣'}</option>`).join('')}</select>
+      <input class="sm" data-am="${i}" value="${esc(r.amount)}" inputmode="decimal" placeholder="金額">
+    </div>
+    ${note ? `<div class="hint" style="margin:-4px 0 12px">備註：${esc(note)}${r.amount ? '　→ 金額 $' + esc(r.amount) : ''}</div>` : ''}`;
+  }).join('');
+  const all = sel => $('items').querySelectorAll(sel);
+  all('[data-i]').forEach(inp => inp.oninput = () => { rows[inp.dataset.i].item = inp.value; update(); });
+  all('[data-m]').forEach(b => b.onclick = () => { const r = rows[b.dataset.m]; r.qty = Math.max(1, r.qty - 1); r.amtEdited = false; renderRows(); update(); });
+  all('[data-p]').forEach(b => b.onclick = () => { const r = rows[b.dataset.p]; r.qty++; r.amtEdited = false; renderRows(); update(); });
+  all('[data-pr]').forEach(inp => inp.onchange = () => { const r = rows[inp.dataset.pr]; r.price = inp.value.replace(/[^\d.]/g, ''); r.amtEdited = false; renderRows(); update(); });
+  all('[data-am]').forEach(inp => inp.onchange = () => { const r = rows[inp.dataset.am]; r.amount = inp.value.replace(/[^\d.]/g, ''); r.amtEdited = !!r.amount; renderRows(); update(); });
+  all('select.disc').forEach(sel => sel.onchange = () => {
     const r = rows[sel.dataset.d];
     if (sel.value === '自訂…') {
       const v = prompt('折扣或備註（例如：78折、送的、成本價）', r.disc || '');
       r.disc = v ? v.trim().replace(/\s+/g, '').slice(0, 12) : '';
     } else r.disc = sel.value;
-    renderRows(); update();
+    r.amtEdited = false; renderRows(); update();
   });
-  $('items').querySelectorAll('[data-x]').forEach(b => b.onclick = () => { rows.splice(+b.dataset.x, 1); renderRows(); update(); });
+  all('[data-x]').forEach(b => b.onclick = () => { rows.splice(+b.dataset.x, 1); renderRows(); update(); });
 }
-$('addRow').onclick = () => { rows.push({ item: '', qty: 1, disc: '' }); renderRows(); update(); const all = $('items').querySelectorAll('input'); all[all.length - 1].focus(); };
+$('addRow').onclick = () => { rows.push(newRow()); renderRows(); update(); const a = $('items').querySelectorAll('[data-i]'); a[a.length - 1].focus(); };
 function renderItemChips(){
   $('itemChips').innerHTML = recentItems.slice(0, 12).map(n => `<button class="chip" data-t="${esc(n)}">${esc(n)}</button>`).join('');
   $('itemChips').querySelectorAll('.chip').forEach(b => b.onclick = () => {
     const empty = rows.find(r => !r.item.trim());
-    if (empty) empty.item = b.dataset.t; else rows.push({ item: b.dataset.t, qty: 1, disc: '' });
+    if (empty) empty.item = b.dataset.t; else rows.push(newRow(b.dataset.t));
     renderRows(); update();
   });
 }
 
 /* ---------- 組成機器人看得懂的格式 ---------- */
 // 小明 取
-// 11/19 山葉紅機油 x2
+// 11/19 POSH M6墊片凹 x20 $240 [$15×20×0.8]
 function buildText(){
   const who = $('who').value.trim();
   const list = rows.filter(r => r.item.trim());
   if (!who || !list.length) return '';
   const date = md(dayOff);
-  return who + ' ' + status + '\n' + list.map(r => `${date} ${r.item.trim().replace(/\s+/g, ' ')}${r.disc ? '（' + r.disc + '）' : ''}${r.qty > 1 ? ' x' + r.qty : ''}`).join('\n');
+  return who + ' ' + status + '\n' + list.map(r => {
+    const note = calc(r);
+    return `${date} ${r.item.trim().replace(/\s+/g, ' ').replace(/[\[\]［］$＄]/g, '')}${r.qty > 1 ? ' x' + r.qty : ''}${r.amount ? ' $' + r.amount : ''}${note ? ' [' + note + ']' : ''}`;
+  }).join('\n');
 }
 function update(){
   const t = buildText();
