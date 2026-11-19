@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="pickup-form-4">
+<script data-ver="pickup-form-6">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -107,12 +107,23 @@
     </div>
     <div class="hint">刪除要先看清單上的編號</div>
   </div>
+
+  <div class="card">
+    <h2>⚖️ 對帳</h2>
+    <div class="two" style="align-items:center">
+      <select id="stA" class="disc"></select>
+      <span style="color:var(--sub);font-size:14px">對</span>
+      <select id="stB" class="disc"></select>
+    </div>
+    <button class="btn" id="settleBtn" style="width:100%;margin-top:10px">⚖️ 算算看誰要給誰</button>
+    <div class="hint">會傳「對帳 A B」到群組，機器人列出兩邊的拿貨明細和差額</div>
+  </div>
 </div>
 
 <button class="btn main" id="send" disabled>送出登記</button>
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v4</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v6</div>
 <script>
 /* ====== 設定：換成新建立的 LIFF ID ====== */
 const LIFF_ID = '2010744078-pPtHEWpP';
@@ -126,7 +137,10 @@ const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 let status = '取', dayOff = 0;
 let rows = [];
 const DISCOUNTS = ['', '95折', '9折', '85折', '8折', '75折', '7折', '同行價', '自訂…'];
-let names = load('pk_names', []);      // 最近用過的名字
+// 常用名字：固定先放 TH、韋德，之後用過的名字也會加進來
+const DEFAULT_NAMES = ['TH', '韋德'];
+let names = load('pk_names', []);
+DEFAULT_NAMES.forEach(n => { if (!names.includes(n)) names.push(n); });
 let recentItems = load('pk_items', []); // 最近登記過的品項
 
 /* ---------- 名字 ---------- */
@@ -253,9 +267,23 @@ $('delBtn').onclick = async () => {
   try { await sendText('刪 ' + num); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
 };
 
+/* ---------- 對帳 ---------- */
+function renderSettle(){
+  const opts = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const a = $('stA').value, b = $('stB').value;
+  $('stA').innerHTML = opts; $('stB').innerHTML = opts;
+  $('stA').value = a || names[0] || '';
+  $('stB').value = b || names.find(n => n !== $('stA').value) || '';
+}
+$('settleBtn').onclick = async () => {
+  const a = $('stA').value, b = $('stB').value;
+  if (!a || !b || a === b) return toast('請選兩個不同的名字');
+  try { await sendText('對帳 ' + a + ' ' + b); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+};
+
 /* ---------- 啟動 ---------- */
 (async () => {
-  renderNames(); renderRows(); renderItemChips(); update();
+  renderNames(); renderRows(); renderItemChips(); renderSettle(); update();
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
