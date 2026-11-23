@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>蝦皮利潤表 v5｜韋德機車精品</title>
-<!-- 蝦皮利潤表 v5 — 韋德機車精品自用 -->
+<title>蝦皮利潤表 v6｜韋德機車精品</title>
+<!-- 蝦皮利潤表 v6 — 韋德機車精品自用 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -70,7 +70,7 @@ ol.steps li{margin-bottom:4px}
 </style>
 </head>
 <body>
-<header><h1>蝦皮利潤表</h1><span class="ver">v5</span></header>
+<header><h1>蝦皮利潤表</h1><span class="ver">v6</span></header>
 <nav id="tabs">
   <button data-t="profit">利潤</button>
   <button data-t="cross">跨賣場</button>
@@ -86,13 +86,14 @@ ol.steps li{margin-bottom:4px}
 
 <script>
 /* ============================================================
- *  蝦皮利潤表 v5 — 韋德機車精品
+ *  蝦皮利潤表 v6 — 韋德機車精品
+ *  v6：全部接受多一個條件：系統品名的字要有 75% 以上出現在蝦皮標題（避免品牌不同被配上）
  *  v5：成本 0／貨款／工資／運費不列入配對；全部接受只處理多規格且規格對得上的；可全部重來
  *  v4：沒規格的單筆系統品名（工資等）不再搶排名；可復原上次全部接受；已完成可檢查
  *  v3：大容量儲存（IndexedDB）＋ 兩層配對（標題→系統品名，規格→系統規格）
  *  資料只存在這台裝置的瀏覽器
  * ============================================================ */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHOPS = [
   ['WD','韋德機車精品'],['EQ','EQ摩托物流'],['MK','MK_精品'],['CO','COCO機車精品'],
   ['天使','ANGEL MOTO'],['老鷹','老鷹機車精品'],['迷霧','迷霧的世界'],['Memorable','Memorable店鋪']
@@ -200,13 +201,13 @@ function famCands(title, n, items){
   const q = toks(strip(title)), qw = wsum(q) || 1, acc = new Map();
   q.forEach(t => { const fs = famInv.get(t); if(!fs || fs.length > 300) return; const w = tw(t); fs.forEach(f => acc.set(f, (acc.get(f) || 0) + w)); });
   let res = [];
-  acc.forEach((v, fn) => { const f = FAM.get(fn); res.push([fn, 0.75 * Math.min(1, v / f.w) + 0.25 * Math.min(1, v / qw)]); });
+  acc.forEach((v, fn) => { const f = FAM.get(fn); res.push([fn, 0.75 * Math.min(1, v / f.w) + 0.25 * Math.min(1, v / qw), Math.min(1, v / f.w)]); });
   res.sort((a, b) => b[1] - a[1]);
   if(items && items.length){
-    res = res.slice(0, 15).map(([fn, ns]) => {
+    res = res.slice(0, 15).map(([fn, ns, cov]) => {
       let h = 0; items.forEach(it => { if(famPick(it, fn)) h++; });
       const weak = isWeak(fn, items);
-      return [fn, 0.6 * ns + (weak ? 0.05 : 0.4) * h / items.length, h, weak];
+      return [fn, 0.6 * ns + (weak ? 0.05 : 0.4) * h / items.length, h, weak, cov];
     });
     res.sort((a, b) => b[1] - a[1]);
   }
@@ -658,8 +659,9 @@ function bulkFam2(){
     if(l.items.every(it => resolve(cur, it))) return;
     if(l.items.length < 2) return;
     const cs = famCands(l.n, 2, l.items); if(!cs.length) return;
-    const [fn, sc, hit, weak] = cs[0];
+    const [fn, sc, hit, weak, cov] = cs[0];
     if(weak) return;
+    if(cov < 0.75) return;
     if(hit < 2) return;
     if(sc < 0.6) return;
     if(cs.length > 1 && sc - cs[1][1] < 0.08) return;
