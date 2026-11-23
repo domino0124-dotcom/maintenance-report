@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="pickup-form-6">
+<script data-ver="pickup-form-7">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -66,6 +66,7 @@
 <body>
 <div class="top"><b>📦 拿貨登記</b><small>點一點就登記，會用你的名義傳到群組，機器人自動記錄</small></div>
 <div class="wrap" id="app">
+  <div class="card" id="pcTip" style="display:none;background:var(--soft);border-color:#f3c9b3;font-size:14px;line-height:1.6">💻 <b>電腦版</b>：按按鈕會<b>複製文字</b>，到 LINE 群組貼上（Ctrl+V）送出就好</div>
 
   <div class="card">
     <h2>誰拿的</h2>
@@ -123,7 +124,7 @@
 <button class="btn main" id="send" disabled>送出登記</button>
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v6</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">pickup-form v7</div>
 <script>
 /* ====== 設定：換成新建立的 LIFF ID ====== */
 const LIFF_ID = '2010744078-pPtHEWpP';
@@ -237,26 +238,43 @@ function update(){
 }
 
 /* ---------- 傳到聊天室 ---------- */
+// 手機 LINE 裡：直接用你的名義傳到群組
+// 電腦（瀏覽器／LINE 電腦版）：不能直接傳 → 複製文字，到群組貼上送出
+const inLine = () => { try { return liff.isInClient(); } catch (e) { return false; } };
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return; } catch (e) {}
+  const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  const ok = document.execCommand('copy'); ta.remove();
+  if (!ok) throw new Error('複製失敗，請手動複製上面的內容');
+}
+// 回傳 true＝已直接送出；false＝已複製（電腦）
 async function sendText(text){
-  if (!liff.isInClient()) throw new Error('請從 LINE 群組的功能選單打開');
-  await liff.sendMessages([{ type: 'text', text }]);
+  if (inLine()) { await liff.sendMessages([{ type: 'text', text }]); return true; }
+  await copyText(text);
+  return false;
+}
+// 送完：手機關視窗；電腦提示去貼上
+function after(sent, okMsg){
+  if (sent) { toast(okMsg || '已送出'); setTimeout(() => liff.closeWindow(), 700); }
+  else toast('已複製！到 LINE 群組貼上送出');
 }
 $('send').onclick = async () => {
   const text = buildText(); if (!text) return;
   $('send').disabled = true; $('send').textContent = '送出中…';
   try {
-    await sendText(text);
+    const sent = await sendText(text);
     const who = $('who').value.trim();
     names = [who, ...names.filter(n => n !== who)].slice(0, 10); save('pk_names', names);
     rows.forEach(r => { const n = r.item.trim(); if (n) recentItems = [n, ...recentItems.filter(x => x !== n)]; });
     recentItems = recentItems.slice(0, 30); save('pk_items', recentItems);
-    toast('已送出，機器人會回覆登記結果');
-    setTimeout(() => liff.closeWindow(), 700);
+    after(sent, '已送出，機器人會回覆登記結果');
+    if (!sent) { $('send').disabled = false; $('send').textContent = '複製登記內容'; }
   } catch (e){ toast(e.message || '送出失敗'); $('send').disabled = false; $('send').textContent = '送出登記'; }
 };
 // 看這個群組全部的登記（每個人分開列）
 $('listBtn').onclick = async () => {
-  try { await sendText('查'); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+  try { after(await sendText('查')); } catch (e){ toast(e.message || '送出失敗'); }
 };
 $('delBtn').onclick = async () => {
   const n = prompt('要刪除第幾號？（看登記清單上的 [編號]）');
@@ -264,7 +282,7 @@ $('delBtn').onclick = async () => {
   const num = String(n).replace(/[^\d]/g, '');
   if (!num) return toast('請輸入編號數字');
   if (!confirm(`確定刪除第 ${num} 筆？`)) return;
-  try { await sendText('刪 ' + num); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+  try { after(await sendText('刪 ' + num)); } catch (e){ toast(e.message || '送出失敗'); }
 };
 
 /* ---------- 對帳 ---------- */
@@ -278,7 +296,7 @@ function renderSettle(){
 $('settleBtn').onclick = async () => {
   const a = $('stA').value, b = $('stB').value;
   if (!a || !b || a === b) return toast('請選兩個不同的名字');
-  try { await sendText('對帳 ' + a + ' ' + b); liff.closeWindow(); } catch (e){ toast(e.message || '送出失敗'); }
+  try { after(await sendText('對帳 ' + a + ' ' + b)); } catch (e){ toast(e.message || '送出失敗'); }
 };
 
 /* ---------- 啟動 ---------- */
@@ -286,15 +304,23 @@ $('settleBtn').onclick = async () => {
   renderNames(); renderRows(); renderItemChips(); renderSettle(); update();
   try {
     await liff.init({ liffId: LIFF_ID });
+    if (!liff.isInClient()) {
+      // 電腦：不用登入 LINE，直接用複製模式
+      $('pcTip').style.display = '';
+      $('send').textContent = '複製登記內容';
+      return;
+    }
     if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
-    if (liff.isInClient() && liff.permission) {
+    if (liff.permission) {
       const pm = await liff.permission.query('chat_message.write');
       if (pm && pm.state === 'prompt') await liff.permission.requestAll();
     }
     // 預設帶上一次用的名字
     if (names.length && !$('who').value) { $('who').value = names[0]; renderNames(); update(); }
   } catch (e){
-    document.body.insertAdjacentHTML('afterbegin', `<div class="err">開啟失敗：${esc(e.message)}</div>`);
+    // LINE 載入失敗也照樣能用複製模式
+    $('pcTip').style.display = '';
+    $('send').textContent = '複製登記內容';
   }
 })();
 </script>
