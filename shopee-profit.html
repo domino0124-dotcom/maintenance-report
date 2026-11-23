@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>蝦皮利潤表 v4｜韋德機車精品</title>
-<!-- 蝦皮利潤表 v4 — 韋德機車精品自用 -->
+<title>蝦皮利潤表 v5｜韋德機車精品</title>
+<!-- 蝦皮利潤表 v5 — 韋德機車精品自用 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -70,7 +70,7 @@ ol.steps li{margin-bottom:4px}
 </style>
 </head>
 <body>
-<header><h1>蝦皮利潤表</h1><span class="ver">v4</span></header>
+<header><h1>蝦皮利潤表</h1><span class="ver">v5</span></header>
 <nav id="tabs">
   <button data-t="profit">利潤</button>
   <button data-t="cross">跨賣場</button>
@@ -86,12 +86,13 @@ ol.steps li{margin-bottom:4px}
 
 <script>
 /* ============================================================
- *  蝦皮利潤表 v4 — 韋德機車精品
+ *  蝦皮利潤表 v5 — 韋德機車精品
+ *  v5：成本 0／貨款／工資／運費不列入配對；全部接受只處理多規格且規格對得上的；可全部重來
  *  v4：沒規格的單筆系統品名（工資等）不再搶排名；可復原上次全部接受；已完成可檢查
  *  v3：大容量儲存（IndexedDB）＋ 兩層配對（標題→系統品名，規格→系統規格）
  *  資料只存在這台裝置的瀏覽器
  * ============================================================ */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHOPS = [
   ['WD','韋德機車精品'],['EQ','EQ摩托物流'],['MK','MK_精品'],['CO','COCO機車精品'],
   ['天使','ANGEL MOTO'],['老鷹','老鷹機車精品'],['迷霧','迷霧的世界'],['Memorable','Memorable店鋪']
@@ -146,6 +147,9 @@ function saveMap(){ RC.clear(); IDB.set('sp_map', MAP); }
 
 /* ---------- 店務系統資料 + 索引 ---------- */
 let sysById = new Map(), sysInv = new Map(), sysBySku = new Map(), FAM = new Map(), famInv = new Map();
+// 不當作商品的系統項目（成本 0、貨款、工資、運費）：不列入自動配對，但搜尋找得到
+const BAD_RE = /貨款|工資|工錢|運費|代墊|折讓|訂金/;
+function isBad(r){ return !(+r[4] > 0) || BAD_RE.test(r[0]); }
 function sysId(r){ return r[2] ? 'c:' + r[2] : 'n:' + r[0] + '|' + r[1]; }
 function toks(s){
   s = String(s || '').normalize('NFKC').toLowerCase();
@@ -173,6 +177,7 @@ function buildSys(){
     const t = toks(r[0] + ' ' + r[1] + ' ' + r[2] + ' ' + r[3]);
     sysById.set(id, {r, w: wsum(t) || 1});
     if(r[2]) sysBySku.set(norm(r[2]), id);
+    if(isBad(r)) return;
     t.forEach(x => { let a = sysInv.get(x); if(!a){ a = []; sysInv.set(x, a); } a.push(id); });
     const fn = String(r[0] || '').trim(); if(!fn) return;
     let f = FAM.get(fn);
@@ -576,7 +581,8 @@ function rMatch(){
     </div>
     <div class="ctrl" style="margin-top:8px;margin-bottom:0">
       ${LS.get('sp_lastbulk_' + cur, null) ? '<button class="btn sec" onclick="undoBulk()">↩ 復原上次全部接受</button>' : ''}
-      <button class="btn sec" onclick="undoWeak()">清掉配到工資類的</button>
+      <button class="btn sec" onclick="undoWeak()">清掉可疑的</button>
+      <button class="btn sec" onclick="resetFam()">全部重來</button>
     </div>
   </div>
   ${page.map(cardListing).join('') || '<div class="empty">🎉 這個分類都完成了</div>'}
@@ -650,16 +656,18 @@ function bulkFam2(){
     const tk = titleKey(l.items[0]);
     if(MAP['fam:' + tk]) return;
     if(l.items.every(it => resolve(cur, it))) return;
+    if(l.items.length < 2) return;
     const cs = famCands(l.n, 2, l.items); if(!cs.length) return;
     const [fn, sc, hit, weak] = cs[0];
     if(weak) return;
+    if(hit < 2) return;
     if(sc < 0.6) return;
     if(cs.length > 1 && sc - cs[1][1] < 0.08) return;
     if(hit / l.items.length < 0.5) return;
     todo.push([tk, fn]);
   });
   if(!todo.length) return toast('沒有夠高分的，請一個一個點');
-  if(!confirm('有 ' + todo.length + ' 個商品頁的第一名分數很高，而且一半以上規格對得上，全部接受？\n（之後可以在「選了但有規格沒對上」裡檢查）')) return;
+  if(!confirm('有 ' + todo.length + ' 個多規格商品頁，第一名分數很高而且一半以上規格對得上，全部接受？\n（只有 1 個規格的商品頁要自己點）\n（之後可以在「選了但有規格沒對上」裡檢查）')) return;
   todo.forEach(([tk, fn]) => { MAP['fam:' + tk] = fn; });
   LS.set('sp_lastbulk_' + cur, todo.map(x => x[0]));
   saveMap(); render(); toast('已接受 ' + todo.length + ' 個商品頁');
@@ -672,12 +680,19 @@ function undoBulk(){
   LS.del('sp_lastbulk_' + cur);
   saveMap(); render(); toast('已復原 ' + keys.length + ' 個');
 }
-// v3 留下的「全部接受」沒有紀錄：用 v4 規則找出可疑的（沒規格的單筆品名）
+function resetFam(){
+  const keys = new Set(listings().map(l => 'fam:' + titleKey(l.items[0])).filter(k => MAP[k]));
+  if(!keys.size) return toast('目前沒有選過的品名');
+  if(!confirm('清掉 ' + shopName(cur) + ' 所有選過的系統品名（' + keys.size + ' 個商品頁），重新來？\n（下拉選單單獨選的規格不受影響）')) return;
+  keys.forEach(k => { delete MAP[k]; });
+  LS.del('sp_lastbulk_' + cur);
+  saveMap(); render(); toast('已清掉 ' + keys.size + ' 個');
+}
 function undoWeak(){
   const bad = [];
-  listings().forEach(l => { const tk = titleKey(l.items[0]), fn = MAP['fam:' + tk]; if(fn && isWeak(fn, l.items)) bad.push(tk); });
+  listings().forEach(l => { const tk = titleKey(l.items[0]), fn = MAP['fam:' + tk]; if(fn && (!FAM.has(fn) || isWeak(fn, l.items))) bad.push(tk); });
   if(!bad.length) return toast('沒有找到可疑的');
-  if(!confirm('找到 ' + bad.length + ' 個商品頁配到「只有一筆、沒規格」的系統品名（可能是工資類），全部取消？')) return;
+  if(!confirm('找到 ' + bad.length + ' 個商品頁配到可疑的系統品名（沒規格的單筆、貨款、成本 0），全部取消？')) return;
   bad.forEach(tk => { delete MAP['fam:' + tk]; });
   saveMap(); render(); toast('已取消 ' + bad.length + ' 個');
 }
