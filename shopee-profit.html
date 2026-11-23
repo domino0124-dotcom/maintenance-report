@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>蝦皮利潤表 v1｜韋德機車精品</title>
-<!-- 蝦皮利潤表 v1 — 韋德機車精品自用 -->
+<title>蝦皮利潤表 v2｜韋德機車精品</title>
+<!-- 蝦皮利潤表 v2 — 韋德機車精品自用（v2：可直接匯入蝦皮下載的 .zip） -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{--bg:#f3f4f6;--card:#fff;--ink:#1f2937;--mute:#6b7280;--line:#e5e7eb;--acc:#ea580c;--acc2:#fff7ed;--ok:#15803d;--bad:#dc2626;--warn:#b45309;--blue:#2563eb}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -69,7 +70,7 @@ ol.steps li{margin-bottom:4px}
 </style>
 </head>
 <body>
-<header><h1>蝦皮利潤表</h1><span class="ver">v1</span></header>
+<header><h1>蝦皮利潤表</h1><span class="ver">v2</span></header>
 <nav id="tabs">
   <button data-t="profit">利潤</button>
   <button data-t="cross">跨賣場</button>
@@ -85,10 +86,10 @@ ol.steps li{margin-bottom:4px}
 
 <script>
 /* ============================================================
- *  蝦皮利潤表 v1 — 韋德機車精品
+ *  蝦皮利潤表 v2 — 韋德機車精品
  *  資料只存在這台裝置的瀏覽器（localStorage）
  * ============================================================ */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHOPS = [
   ['WD','韋德機車精品'],['EQ','EQ摩托物流'],['MK','MK_精品'],['CO','COCO機車精品'],
   ['天使','ANGEL MOTO'],['老鷹','老鷹機車精品'],['迷霧','迷霧的世界'],['Memorable','Memorable店鋪']
@@ -247,9 +248,23 @@ async function doImport(){
   const btn = $('#impbtn'); btn.disabled = true; btn.textContent = '匯入中…';
   const prev = shopData(cur), info = {}, items = new Map(), sess = [], log = [];
   if(prev) prev.items.forEach(it => { const o = info[it.id] || (info[it.id] = {}); if(it.cat) o.cat = it.cat; if(it.dts !== '' && it.dts != null) o.dts = it.dts; });
+  // v2：.zip 先解壓，裡面每個 .xlsx 都讀
+  const parts = [];
   for(const f of files){
+    const buf = await f.arrayBuffer();
+    if(/\.zip$/i.test(f.name)){
+      if(typeof JSZip === 'undefined'){ log.push('❌ ' + f.name + '：解壓元件沒載入，請重新整理'); continue; }
+      try{
+        const zip = await JSZip.loadAsync(buf);
+        const names = Object.keys(zip.files).filter(n => !zip.files[n].dir && !/__MACOSX|\/\./.test(n) && /\.(xlsx|xls|csv)$/i.test(n)).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+        if(!names.length) log.push('❌ ' + f.name + '：壓縮檔裡沒有 Excel');
+        for(const n of names) parts.push({name: f.name.replace(/\.zip$/i, '') + '_' + n.split('/').pop(), buf: await zip.files[n].async('arraybuffer')});
+      }catch(e){ log.push('❌ ' + f.name + '：解壓失敗'); }
+    }else parts.push({name: f.name, buf});
+  }
+  for(const f of parts){
     let wb;
-    try{ wb = XLSX.read(await f.arrayBuffer(), {type: 'array'}); }catch(e){ log.push('❌ ' + f.name + '：讀不到檔案'); continue; }
+    try{ wb = XLSX.read(f.buf, {type: 'array'}); }catch(e){ log.push('❌ ' + f.name + '：讀不到檔案'); continue; }
     let used = 0;
     wb.SheetNames.forEach(sn => {
       const ws = wb.Sheets[sn]; if(!ws || !ws['!ref']) return;
@@ -503,10 +518,10 @@ function rImport(){
     <div class="muted">上面先選賣場，再選檔案。</div>
     <ol class="steps muted">
       <li>用這個賣場的帳號登入蝦皮賣家中心</li>
-      <li>我的商品 → 商品批次編輯工具 → 下載「價格及庫存」和「備貨天數」</li>
-      <li>兩份檔案一起選，按匯入</li>
+      <li>我的商品 → 批次工具 → 下載「價格及庫存」和「備貨天數」</li>
+      <li>下載到的兩個 .zip（sales_info 和 dts_info）一起選，按匯入。不用解壓縮</li>
     </ol>
-    <input type="file" id="file" multiple accept=".xlsx,.xls,.csv" style="width:100%;margin-bottom:10px">
+    <input type="file" id="file" multiple accept=".zip,.xlsx,.xls,.csv" style="width:100%;margin-bottom:10px">
     <button class="btn full" id="impbtn" onclick="doImport()">匯入</button>
   </div>
   ${log.length ? `<div class="box"><h3>上次匯入結果</h3>${log.map(l => `<div class="muted" style="color:var(--ink)">${esc(l)}</div>`).join('')}${d ? `<div class="muted" style="margin-top:6px">時間 ${esc(d.at)}</div>` : ''}</div>` : ''}
