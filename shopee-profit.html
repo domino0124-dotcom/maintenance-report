@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>蝦皮利潤表 v3｜韋德機車精品</title>
-<!-- 蝦皮利潤表 v3 — 韋德機車精品自用（v3：大容量儲存＋兩層配對） -->
+<title>蝦皮利潤表 v4｜韋德機車精品</title>
+<!-- 蝦皮利潤表 v4 — 韋德機車精品自用 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -70,7 +70,7 @@ ol.steps li{margin-bottom:4px}
 </style>
 </head>
 <body>
-<header><h1>蝦皮利潤表</h1><span class="ver">v3</span></header>
+<header><h1>蝦皮利潤表</h1><span class="ver">v4</span></header>
 <nav id="tabs">
   <button data-t="profit">利潤</button>
   <button data-t="cross">跨賣場</button>
@@ -86,11 +86,12 @@ ol.steps li{margin-bottom:4px}
 
 <script>
 /* ============================================================
- *  蝦皮利潤表 v3 — 韋德機車精品
+ *  蝦皮利潤表 v4 — 韋德機車精品
+ *  v4：沒規格的單筆系統品名（工資等）不再搶排名；可復原上次全部接受；已完成可檢查
  *  v3：大容量儲存（IndexedDB）＋ 兩層配對（標題→系統品名，規格→系統規格）
  *  資料只存在這台裝置的瀏覽器
  * ============================================================ */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHOPS = [
   ['WD','韋德機車精品'],['EQ','EQ摩托物流'],['MK','MK_精品'],['CO','COCO機車精品'],
   ['天使','ANGEL MOTO'],['老鷹','老鷹機車精品'],['迷霧','迷霧的世界'],['Memorable','Memorable店鋪']
@@ -197,10 +198,19 @@ function famCands(title, n, items){
   acc.forEach((v, fn) => { const f = FAM.get(fn); res.push([fn, 0.75 * Math.min(1, v / f.w) + 0.25 * Math.min(1, v / qw)]); });
   res.sort((a, b) => b[1] - a[1]);
   if(items && items.length){
-    res = res.slice(0, 12).map(([fn, ns]) => { let h = 0; items.forEach(it => { if(famPick(it, fn)) h++; }); return [fn, 0.6 * ns + 0.4 * h / items.length, h]; });
+    res = res.slice(0, 15).map(([fn, ns]) => {
+      let h = 0; items.forEach(it => { if(famPick(it, fn)) h++; });
+      const weak = isWeak(fn, items);
+      return [fn, 0.6 * ns + (weak ? 0.05 : 0.4) * h / items.length, h, weak];
+    });
     res.sort((a, b) => b[1] - a[1]);
   }
   return res.slice(0, n || 3);
+}
+// 只有一筆、沒有規格的系統品名（例如工資、雜項）：對多規格商品頁不可靠
+function isWeak(fn, items){
+  const f = FAM.get(fn); if(!f || f.ids.length !== 1) return false;
+  return !sysById.get(f.ids[0]).r[1] && items.length > 1;
 }
 function kwSearch(kw, max){
   const kws = kw.toLowerCase().split(/\s+/).filter(Boolean), out = [];
@@ -549,6 +559,7 @@ function rMatch(){
   if(mode === 'todo') list = ls.filter(l => l.un.length && !l.skip);
   if(mode === 'nofam') list = ls.filter(l => l.un.length && !l.fam);
   if(mode === 'part') list = ls.filter(l => l.un.length && l.fam);
+  if(mode === 'done') list = ls.filter(l => !l.un.length);
   const q = LS.get('sp_mq', '');
   if(q){ const ks = q.toLowerCase().split(/\s+/).filter(Boolean); list = list.filter(l => ks.every(k => l.n.toLowerCase().includes(k))); }
   const page = list.slice(0, Math.min(limit, 30));
@@ -560,8 +571,12 @@ function rMatch(){
     系統裡沒有的商品（沒登入系統的）可以先跳過。</div>
     <div class="ctrl" style="margin-top:10px;margin-bottom:0">
       <button class="btn" onclick="bulkFam()">高分的全部接受</button>
-      <select id="mmode"><option value="todo">未完成</option><option value="nofam">還沒選品名</option><option value="part">選了但有規格沒對上</option><option value="all">全部</option></select>
+      <select id="mmode"><option value="todo">未完成</option><option value="nofam">還沒選品名</option><option value="part">選了但有規格沒對上</option><option value="done">已完成（檢查用）</option><option value="all">全部</option></select>
       <input id="mq" placeholder="搜尋蝦皮標題" value="${esc(q)}">
+    </div>
+    <div class="ctrl" style="margin-top:8px;margin-bottom:0">
+      ${LS.get('sp_lastbulk_' + cur, null) ? '<button class="btn sec" onclick="undoBulk()">↩ 復原上次全部接受</button>' : ''}
+      <button class="btn sec" onclick="undoWeak()">清掉配到工資類的</button>
     </div>
   </div>
   ${page.map(cardListing).join('') || '<div class="empty">🎉 這個分類都完成了</div>'}
@@ -579,9 +594,12 @@ function rMatch(){
 function cardListing(l){
   const tot = l.items.length;
   let body = '';
-  if(!l.fam){
+  const okList = l.items.filter(it => !l.un.includes(it)).slice(0, 4).map(it => { const m = resolve(cur, it), o = m && m.id ? sysById.get(m.id) : null; return `<div class="muted">✓ ${esc(it.m || '(無規格)')} → ${esc(o ? o.r[0] + ' ' + (o.r[1] || '') + ' ' + money(o.r[4]) : '手動 ' + money(m && m.mc))}</div>`; }).join('');
+  if(!l.un.length && !l.fam){
+    body = `<div style="margin-top:6px">${okList}</div>`;
+  }else if(!l.fam){
     const cs = famCands(l.n, 3, l.items);
-    body = `<div class="cands">${cs.map(([fn, sc, hit]) => { const f = FAM.get(fn); return `<button class="cand" onclick="setFam('${esc(l.id)}','${encodeURIComponent(fn)}')"><span class="sc">${Math.round(sc * 100)}%</span>${esc(fn)}<br><span class="muted">系統 ${f.ids.length} 個規格｜可自動對上 <b style="color:${hit ? 'var(--ok)' : 'var(--bad)'}">${hit}/${tot}</b></span></button>`; }).join('') || '<div class="muted">系統裡找不到像的品名（可能沒登入系統），可以先跳過</div>'}
+    body = `<div class="cands">${cs.map(([fn, sc, hit, weak]) => { const f = FAM.get(fn); return `<button class="cand" onclick="setFam('${esc(l.id)}','${encodeURIComponent(fn)}')"><span class="sc">${Math.round(sc * 100)}%</span>${esc(fn)}<br><span class="muted">系統 ${f.ids.length} 個規格｜${weak ? '<b class="low">沒規格，全部規格會用同一個成本</b>' : `可自動對上 <b style="color:${hit ? 'var(--ok)' : 'var(--bad)'}">${hit}/${tot}</b>`}</span></button>`; }).join('') || '<div class="muted">系統裡找不到像的品名（可能沒登入系統），可以先跳過</div>'}
       <div class="ctrl" style="margin:0"><button class="btn sec" style="flex:1" onclick="openFam('${esc(l.id)}')">🔍 搜尋品名</button></div></div>`;
   }else{
     const f = FAM.get(l.fam);
@@ -590,7 +608,8 @@ function cardListing(l){
       <a href="#" onclick="openFam('${esc(l.id)}');return false">換</a></div>
       ${l.un.slice(0, 12).map(it => `<div class="row" style="margin:6px 0 0"><label style="flex:0 0 42%;font-size:13px">${esc(it.m || '(無規格)')} <span class="muted">${money(it.p)}</span></label>
         <select data-vk="${esc(it.k)}" style="flex:1;font-size:13px"><option value="">選系統規格…</option>${opts}<option value="__search">🔍 其他商品／手動成本</option></select></div>`).join('')}
-      ${l.un.length > 12 ? `<div class="muted">還有 ${l.un.length - 12} 個，選完上面的會補上</div>` : ''}`;
+      ${l.un.length > 12 ? `<div class="muted">還有 ${l.un.length - 12} 個，選完上面的會補上</div>` : ''}
+      ${!l.un.length ? okList : ''}`;
   }
   return `<div class="card"><div class="nm">${esc(strip(l.n))}</div>
     <div class="sub">${tot} 個規格｜未配對 ${l.un.length}${l.items[0].m ? '｜例：' + esc(l.items.slice(0, 3).map(x => x.m).join('、')) : ''}</div>${body}</div>`;
@@ -615,7 +634,7 @@ function openFam(lid){
   const draw = () => {
     const kw = $('#f-kw').value.trim();
     const res = kw ? famSearch(kw, 30) : famCands(l.n, 8, l.items);
-    $('#f-res').innerHTML = res.map(([fn, sc]) => { const f = FAM.get(fn); return `<button class="cand ${fn === curFam ? 'sel' : ''}" onclick="setFam('${esc(lid)}','${encodeURIComponent(fn)}')">${sc != null ? `<span class="sc">${Math.round(sc * 100)}%</span>` : ''}${esc(fn)}<br><span class="muted">系統 ${f.ids.length} 個規格｜可自動對上 ${famPreview(l, fn)}/${l.items.length}</span></button>`; }).join('') || '<div class="muted">找不到，少打一個關鍵字試試</div>';
+    $('#f-res').innerHTML = res.map(([fn, sc]) => { const f = FAM.get(fn), weak = isWeak(fn, l.items); return `<button class="cand ${fn === curFam ? 'sel' : ''}" onclick="setFam('${esc(lid)}','${encodeURIComponent(fn)}')">${sc != null ? `<span class="sc">${Math.round(sc * 100)}%</span>` : ''}${esc(fn)}<br><span class="muted">系統 ${f.ids.length} 個規格｜${weak ? '<b class="low">沒規格，全部規格會用同一個成本</b>' : '可自動對上 ' + famPreview(l, fn) + '/' + l.items.length}</span></button>`; }).join('') || '<div class="muted">找不到，少打一個關鍵字試試</div>';
   };
   $('#f-kw').oninput = () => { clearTimeout(openFam._t); openFam._t = setTimeout(draw, 250); };
   draw();
@@ -632,7 +651,8 @@ function bulkFam2(){
     if(MAP['fam:' + tk]) return;
     if(l.items.every(it => resolve(cur, it))) return;
     const cs = famCands(l.n, 2, l.items); if(!cs.length) return;
-    const [fn, sc, hit] = cs[0];
+    const [fn, sc, hit, weak] = cs[0];
+    if(weak) return;
     if(sc < 0.6) return;
     if(cs.length > 1 && sc - cs[1][1] < 0.08) return;
     if(hit / l.items.length < 0.5) return;
@@ -641,7 +661,25 @@ function bulkFam2(){
   if(!todo.length) return toast('沒有夠高分的，請一個一個點');
   if(!confirm('有 ' + todo.length + ' 個商品頁的第一名分數很高，而且一半以上規格對得上，全部接受？\n（之後可以在「選了但有規格沒對上」裡檢查）')) return;
   todo.forEach(([tk, fn]) => { MAP['fam:' + tk] = fn; });
+  LS.set('sp_lastbulk_' + cur, todo.map(x => x[0]));
   saveMap(); render(); toast('已接受 ' + todo.length + ' 個商品頁');
+}
+function undoBulk(){
+  const keys = LS.get('sp_lastbulk_' + cur, null);
+  if(!keys || !keys.length) return toast('沒有可以復原的');
+  if(!confirm('復原上次「全部接受」的 ' + keys.length + ' 個商品頁？（你自己手動選的不受影響）')) return;
+  keys.forEach(tk => { delete MAP['fam:' + tk]; });
+  LS.del('sp_lastbulk_' + cur);
+  saveMap(); render(); toast('已復原 ' + keys.length + ' 個');
+}
+// v3 留下的「全部接受」沒有紀錄：用 v4 規則找出可疑的（沒規格的單筆品名）
+function undoWeak(){
+  const bad = [];
+  listings().forEach(l => { const tk = titleKey(l.items[0]), fn = MAP['fam:' + tk]; if(fn && isWeak(fn, l.items)) bad.push(tk); });
+  if(!bad.length) return toast('沒有找到可疑的');
+  if(!confirm('找到 ' + bad.length + ' 個商品頁配到「只有一筆、沒規格」的系統品名（可能是工資類），全部取消？')) return;
+  bad.forEach(tk => { delete MAP['fam:' + tk]; });
+  saveMap(); render(); toast('已取消 ' + bad.length + ' 個');
 }
 
 /* ---------- 匯入頁、設定頁 ---------- */
