@@ -109,6 +109,11 @@
   .item .meta{font-size:13px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pts{font-size:20px;font-weight:800;white-space:nowrap}
   .pts small{font-size:13px;color:var(--sub);font-weight:600}
+  .vrow{margin:3px 0 1px;display:flex;align-items:center;gap:4px}
+  .vtag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:999px;font-weight:700;vertical-align:1px;white-space:nowrap}
+  .vtag.ok{background:var(--ok-soft);color:var(--ok)}
+  .vtag.no{background:#fff4e5;color:#b45309}
+  .vbtn{margin-left:4px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--brand);background:#fff;color:var(--brand-2);vertical-align:1px}
   .badge{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-weight:700;margin-left:6px;vertical-align:1px}
   .sheet{position:fixed;inset:0;background:rgba(15,18,26,.5);display:none;align-items:flex-end;justify-content:center;z-index:20}
   .sheet.show{display:flex}
@@ -139,7 +144,7 @@
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">points-admin v2</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">points-admin v3</div>
 <script>
 (()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');const el=document.getElementById('todayLbl');if(el)el.textContent=`${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;})();
 /* ====== 設定（部署前填好）====== */
@@ -164,6 +169,22 @@ async function api(action, extra = {}) {
   return res.json();
 }
 
+/* ---------- 車號確認狀態 ---------- */
+function actPts(r) {
+  const d = Number(r.delta) || 0;
+  if (r.action === '兌換') return '<small>兌換</small>';
+  if (r.action === '確認車號') return '<small style="color:var(--ok)">✓ 確認</small>';
+  if (!d) return `<small>${r.after ?? ''}</small>`;
+  return `${d > 0 ? '+' + d : d}<small> → ${r.after}</small>`;
+}
+const isVerified = m => !!(m && m.plate && String(m.verified || '') === String(m.plate));
+function verTag(m) {
+  if (!m || !m.plate || !('verified' in m)) return '';
+  return isVerified(m)
+    ? '<span class="vtag ok">✓ 已確認</span>'
+    : `<span class="vtag no">未確認</span><button class="vbtn" data-verify="${esc(m.code)}">確認</button>`;
+}
+
 /* ---------- 主畫面 ---------- */
 function renderMain() {
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
@@ -171,11 +192,13 @@ function renderMain() {
   const shown = list.filter(m => {
     if (filter === 'full' && !m.full) return false;
     if (filter === 'month' && !(m.lastAdd >= monthStart.getTime())) return false;
+    if (filter === 'unver' && !(m.plate && !isVerified(m))) return false;
     if (!kw) return true;
     return [m.code, m.name, m.lineName, m.phone, m.plate].some(v => String(v || '').toUpperCase().includes(kw));
   });
 
   const monthCount = list.filter(m => m.lastAdd >= monthStart.getTime()).length;
+  const unverCount = list.filter(m => m.plate && 'verified' in m && !isVerified(m)).length;
   const redeemedAll = list.reduce((a, m) => a + (m.redeemed || 0), 0);
   $('#app').innerHTML = `
     <div class="head"><h1>集點後台</h1><div class="subtitle">換機油一次 1 點，滿 ${meta.goal} 點可兌換「${esc(meta.reward)}」。</div></div>
@@ -205,8 +228,9 @@ function renderMain() {
         return `<div class="item" data-code="${esc(r.code)}">
           <div class="ava ${r.action === '兌換' ? 'full' : ''}">${esc(who.slice(0, 1))}</div>
           <div class="mid"><div class="nm">${esc(who)}${(r.note || '').includes('｜') ? ' <span class="hint">' + esc(r.note.split('｜')[1]) + '</span>' : (mb.plate ? ' <span class="hint">' + esc(String(mb.plate).replace(/,/g, ' / ')) + '</span>' : '')}</div>
+            ${verTag(mb) ? `<div class="vrow">${verTag(mb)}</div>` : ''}
             <div class="meta">${esc(r.action)}${r.action === '自助集點' ? '（牆上 QR）' : ''} · ${fmt(r.time)}</div></div>
-          <div class="pts">${r.action === '兌換' ? '<small>兌換</small>' : '+1'}<small> → ${r.after}</small></div></div>`;
+          <div class="pts">${actPts(r)}</div></div>`;
       }).join('') : '<div class="hint">還沒有人集點</div>'}
     </div>
 
@@ -216,6 +240,7 @@ function renderMain() {
         <button class="chip ${filter==='all'?'on':''}" data-f="all">全部</button>
         <button class="chip ${filter==='full'?'on':''}" data-f="full">可兌換</button>
         <button class="chip ${filter==='month'?'on':''}" data-f="month">本月有加點</button>
+        <button class="chip ${filter==='unver'?'on':''}" data-f="unver">未確認車號${unverCount ? ' ' + unverCount : ''}</button>
       </div>
       <input id="kw" placeholder="搜尋姓名、電話、車牌、編號" value="${esc(keyword)}" style="margin-bottom:6px">
       <div id="listBox">
@@ -224,6 +249,7 @@ function renderMain() {
             <div class="ava ${m.full ? 'full' : ''}">${esc((m.name || m.lineName || '?').slice(0, 1))}</div>
             <div class="mid">
               <div class="nm">${esc(m.name || m.lineName || '未命名')}${m.full ? '<span class="badge">可兌換</span>' : ''}</div>
+              ${verTag(m) ? `<div class="vrow">${verTag(m)}</div>` : ''}
               <div class="meta">${esc(m.code)}${m.plate ? ' · ' + esc(String(m.plate).replace(/,/g, ' / ')) : ''}${m.phone ? ' · ' + esc(m.phone) : ''}</div>
               <div class="meta">最後加點 ${fmt(m.lastAdd)} · 已兌換 ${m.redeemed} 次</div>
             </div>
@@ -251,7 +277,17 @@ function renderMain() {
   $('#codeIn').onkeydown = e => { if (e.key === 'Enter') findMember(); };
   $('#reloadBtn').onclick = () => loadList(true);
   document.querySelectorAll('.chip').forEach(b => b.onclick = () => { filter = b.dataset.f; renderMain(); });
-  document.querySelectorAll('.item').forEach(el => el.onclick = () => openMember(el.dataset.code));
+  document.querySelectorAll('.item').forEach(el => el.onclick = e => { if (e.target.closest('[data-verify]')) return; openMember(el.dataset.code); });
+  document.querySelectorAll('[data-verify]').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    const m = list.find(x => x.code === b.dataset.verify); if (!m) return;
+    if (!confirm(`確認 ${String(m.plate).replace(/,/g, ' / ')} 是 ${m.name || m.lineName || '這位客人'} 的車？`)) return;
+    b.disabled = true; b.textContent = '…';
+    const j = await api('verify', { code: m.code });
+    if (!j.ok) { toast(j.error || '確認失敗'); b.disabled = false; b.textContent = '確認'; return; }
+    m.verified = (j.member && j.member.verified) || m.plate;   // 先在畫面上更新，不用等重新整理
+    toast('車號已確認'); renderMain(); loadList(false);
+  });
   const kwEl = $('#kw');
   kwEl.oninput = () => { keyword = kwEl.value; const pos = kwEl.selectionStart; renderMain(); const n = $('#kw'); n.focus(); n.setSelectionRange(pos, pos); };
 }
