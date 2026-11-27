@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="ledger-3">
+<script data-ver="ledger-4">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -205,6 +205,13 @@
   .bsel,.selall input{width:20px;height:20px;accent-color:var(--brand);flex:none}
   .payrow{gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
   .payrow .chip{padding:7px 14px;font-size:14px;background:var(--ok-soft);border-color:#bfe5cb;color:var(--ok);font-weight:700}
+  /* ===== 帳款：月結／現金分開 ===== */
+  .seq{flex:none;width:26px;height:26px;border-radius:8px;background:#eceef2;color:var(--ink2);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-right:2px}
+  .paysum .split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .paysum .split > div{background:#f6f7f9;border-radius:14px;padding:12px}
+  .paysum .split .k{display:block;font-size:13px;color:var(--sub);font-weight:600}
+  .paysum .split b{display:block;font-size:20px;margin-top:4px}
+  .paysum .split small{font-size:12px;color:var(--sub)}
   /* ===== 蝦皮取件 ===== */
   .tabs button .nb{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:99px;
     background:var(--red);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
@@ -246,7 +253,7 @@
     .toast{bottom:30px}
     .stats{grid-template-columns:repeat(4,1fr)}
     #view.cols{display:grid;grid-template-columns:440px 1fr;gap:18px;align-items:start}
-    #view.cols > .card:first-child{position:sticky;top:130px}
+    #view.cols > .card:first-child{position:sticky;top:130px;max-height:calc(100vh - 150px);overflow-y:auto;overscroll-behavior:contain}
     #view.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
     #view.grid > .card{margin-bottom:0}
     #view.grid > .hero, #view.grid > .stats, #view.grid > .full{grid-column:1 / -1}
@@ -278,7 +285,7 @@
 
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v3</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v4</div>
 <script>
 /* ====== 設定（部署前填好）====== */
 const LIFF_ID = '2010744078-JVmXBk98';
@@ -731,12 +738,25 @@ async function viewBill() {
   loadBills();
 }
 
+// 輸入順序：ID 前 12 碼是建立時間，大量貼上的 ID 最後 3 碼是第幾行
+function inputKey(b, i) {
+  const id = String(b.id || '');
+  if (!/^\d{15,}$/.test(id)) return [Infinity, i];
+  return [Number(id.slice(0, 12)), id.length > 15 ? Number(id.slice(-3)) : 0, i];
+}
+function byInput(list) {
+  return list.map((b, i) => [inputKey(b, i), b]).sort((x, y) => {
+    for (let k = 0; k < 3; k++) { const d = (x[0][k] ?? 0) - (y[0][k] ?? 0); if (d) return d; }
+    return 0;
+  }).map(x => x[1]);
+}
 function countMonth(b) { return b.type === '現金' ? b.month : addMonth(b.month, 1); }
-function billItem(b, selectable) {
+function billItem(b, selectable, seq) {
   const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
   const unpaid = b.status !== '已付';
   return `<div class="item" data-bill="${esc(b.id)}">
     ${selectable && unpaid ? `<input type="checkbox" class="bsel" data-sel="${esc(b.id)}" data-amt="${b.amount}" ${billSel.has(b.id) ? 'checked' : ''}>` : ''}
+    ${seq ? `<div class="seq">${seq}</div>` : ''}
     <div style="flex:1;min-width:0"><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
       <div class="s">${b.type === '現金' ? esc(b.month) + ' 現金貨款' : esc(b.month) + ' 帳'}・算在 ${+countMonth(b).slice(5)} 月${b.method && b.type !== '現金' ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
       <div class="payrow" data-payrow="${esc(b.id)}" style="display:none">
@@ -768,9 +788,24 @@ async function loadBills() {
           <button class="btn ok sm" id="batchPay">勾選的付款</button>
         </div>` : ''}
         ${j.unpaid.length ? j.unpaid.map(b => billItem(b, true)).join('') : '<div class="hint">沒有未付帳款 👍</div>'}</div>
-      <div class="card"><h2>${+month().slice(5)} 月付的貨款 <span>${money(sum(j.ofMonth))}</span></h2>
-        <div class="hint" style="margin:-6px 0 6px">${+j.prevMonth.slice(5)} 月的月結帳 + ${+month().slice(5)} 月的現金貨款・跟總覽淨利扣的一樣</div>
-        ${j.ofMonth.length ? j.ofMonth.map(b => billItem(b, false)).join('') : '<div class="hint">這個月沒有要付的貨款</div>'}</div>
+      ${(() => {
+        const mm = +month().slice(5), pm = +j.prevMonth.slice(5);
+        const monthly = j.ofMonth.filter(b => b.type !== '現金');
+        const cash = byInput(j.ofMonth.filter(b => b.type === '現金'));
+        return `
+      <div class="card paysum"><h2>${mm} 月付的貨款合計 <span>${money(sum(j.ofMonth))}</span></h2>
+        <div class="split">
+          <div><span class="k">📄 月結（${pm} 月帳）</span><b>${money(sum(monthly))}</b><small>${monthly.length} 家</small></div>
+          <div><span class="k">💵 現金（${mm} 月付）</span><b>${money(sum(cash))}</b><small>${cash.length} 筆</small></div>
+        </div>
+        <div class="hint">跟總覽淨利扣的一樣</div></div>
+      <div class="card"><h2>📄 月結帳：${pm} 月帳 <span>${money(sum(monthly))}</span></h2>
+        <div class="hint" style="margin:-6px 0 6px">廠商月底寄帳單、下個月付的。${pm} 月帳在 ${mm} 月付。</div>
+        ${monthly.length ? monthly.map(b => billItem(b, false)).join('') : `<div class="hint">沒有 ${pm} 月帳</div>`}</div>
+      <div class="card"><h2>💵 現金貨款：${mm} 月 <span>${money(sum(cash))}</span></h2>
+        <div class="hint" style="margin:-6px 0 6px">當場付現的進貨，照你輸入的順序排，方便對帳。</div>
+        ${cash.length ? cash.map((b, i) => billItem(b, false, i + 1)).join('') : `<div class="hint">${mm} 月沒有現金貨款</div>`}</div>`;
+      })()}
       <div class="card"><h2>最近新增 <span class="hint">不分月份，確認剛剛有沒有存到</span></h2>
         ${(j.recent || []).length ? j.recent.map(b => billItem(b, false)).join('') : '<div class="hint">還沒有帳款</div>'}</div>`;
 
