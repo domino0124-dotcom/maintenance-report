@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="ledger-4">
+<script data-ver="ledger-5">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -285,7 +285,7 @@
 
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v4</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v5</div>
 <script>
 /* ====== 設定（部署前填好）====== */
 const LIFF_ID = '2010744078-JVmXBk98';
@@ -590,7 +590,7 @@ async function loadTxList() {
 
 /* ================= 帳款 ================= */
 const PAY_WAYS = ['現金', '支票', '轉帳'];
-let billSel = new Set(), batchWay = '轉帳';
+let billSel = new Set(), batchWay = '轉帳', delQueue = 0;
 
 function billModeSwitch() {
   return `<div class="seg" style="margin-bottom:12px">
@@ -804,10 +804,30 @@ async function loadBills() {
         ${monthly.length ? monthly.map(b => billItem(b, false)).join('') : `<div class="hint">沒有 ${pm} 月帳</div>`}</div>
       <div class="card"><h2>💵 現金貨款：${mm} 月 <span>${money(sum(cash))}</span></h2>
         <div class="hint" style="margin:-6px 0 6px">當場付現的進貨，照你輸入的順序排，方便對帳。</div>
+        ${cash.length ? `<button class="btn gray sm" id="delAllCash" data-ids="${esc(cash.map(b => b.id).join(','))}" data-sum="${sum(cash)}" style="margin-bottom:6px">🗑 刪除 ${mm} 月全部現金（${cash.length} 筆）重新輸入</button>` : ''}
         ${cash.length ? cash.map((b, i) => billItem(b, false, i + 1)).join('') : `<div class="hint">${mm} 月沒有現金貨款</div>`}</div>`;
       })()}
       <div class="card"><h2>最近新增 <span class="hint">不分月份，確認剛剛有沒有存到</span></h2>
         ${(j.recent || []).length ? j.recent.map(b => billItem(b, false)).join('') : '<div class="hint">還沒有帳款</div>'}</div>`;
+
+    // 刪除整個月的現金貨款（重新輸入用）
+    if ($('#delAllCash')) $('#delAllCash').onclick = async () => {
+      const btn = $('#delAllCash'), ids = btn.dataset.ids.split(',').filter(Boolean);
+      if (!confirm(`確定刪除 ${month().slice(5).replace(/^0/, '')} 月全部現金貨款？\n共 ${ids.length} 筆、${money(Number(btn.dataset.sum))}\n刪除後不能復原。`)) return;
+      btn.disabled = true;
+      let done = 0, fail = 0, k = 0;
+      const worker = async () => {
+        while (k < ids.length) {
+          const id = ids[k++];
+          try { await api('delBill', { id }); done++; } catch (e) { fail++; }
+          btn.textContent = `刪除中… ${done + fail} / ${ids.length}`;
+        }
+      };
+      btn.textContent = `刪除中… 0 / ${ids.length}`;
+      await Promise.all(Array.from({ length: Math.min(6, ids.length) }, worker));   // 6 筆同時刪，快很多
+      toast(fail ? `已刪除 ${done} 筆，${fail} 筆失敗` : `已刪除 ${done} 筆，可以重新輸入了`);
+      loadBills();
+    };
 
     // 批次
     const updSel = () => {
@@ -852,7 +872,13 @@ async function loadBills() {
     });
     document.querySelectorAll('[data-bdel]').forEach(b => b.onclick = async () => {
       if (!confirm('確定刪除這筆帳款？')) return;
-      try { await api('delBill', { id: b.dataset.bdel }); toast('已刪除'); loadBills(); } catch (e) { toast(e.message); }
+      const id = b.dataset.bdel;
+      // 先從畫面拿掉（不用等），背景再刪
+      document.querySelectorAll(`[data-bill="${CSS.escape(id)}"]`).forEach(el => { el.style.transition = '.2s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 200); });
+      delQueue++;
+      try { await api('delBill', { id }); toast('已刪除'); }
+      catch (e) { toast('刪除失敗：' + e.message); }
+      finally { if (--delQueue === 0) loadBills(); }   // 連續刪很多筆時，全部刪完才重新整理一次
     });
   } catch (e) { $('#billLists').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
