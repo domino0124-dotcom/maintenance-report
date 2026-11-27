@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="ledger-6">
+<script data-ver="ledger-7">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -210,7 +210,9 @@
   .typebar.cash{background:#fff4e5;color:#b45309}
   .seg button.cashon{color:#b45309}
   .batch.conv{margin:4px 0 8px}
-  .csel{width:20px;height:20px;accent-color:var(--brand);flex:none;margin-right:2px}
+  .cnt{font-size:12px;color:var(--sub);margin-top:4px}
+  .cnt.warn{color:#b45309}
+  .csel,.msel{width:20px;height:20px;accent-color:var(--brand);flex:none;margin-right:2px}
   .seq{flex:none;width:26px;height:26px;border-radius:8px;background:#eceef2;color:var(--ink2);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-right:2px}
   .paysum .split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
   .paysum .split > div{background:#f6f7f9;border-radius:14px;padding:12px}
@@ -293,7 +295,7 @@
 
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v6</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v7</div>
 <script>
 /* ====== 設定（部署前填好）====== */
 const LIFF_ID = '2010744078-JVmXBk98';
@@ -335,9 +337,18 @@ function defaultTxDate() {
   const [y, mo] = m.split('-').map(Number);
   return `${m}-${pad(new Date(y, mo, 0).getDate())}`;
 }
-// 廠商帳月預設：X月帳在 X/25 結帳、下個月才收到帳單並付款
-// 所以 26 號（含）以後輸入 → 本月帳；1～25 號輸入 → 上個月的帳（例：11/13 輸入 → 10月帳）
-function defaultBillMonth() { const d = new Date(); return d.getDate() >= 26 ? thisMonth() : addMonth(thisMonth(), -1); }
+// 廠商帳月預設：一律「上個月」— 這個月付的是上個月的帳（例：11 月輸入 → 10 月帳，算在 11 月）
+function defaultBillMonth() { return addMonth(thisMonth(), -1); }
+// 帳月旁邊即時顯示「算在幾月」，避免選錯
+function bindCountHint(isCash) {
+  const inp = document.getElementById('bMonth'), el = document.getElementById('cntHint');
+  if (!inp || !el) return;
+  const upd = () => { const v = inp.value; if (!v) { el.textContent = ''; return; }
+    const c = isCash ? v : addMonth(v, 1);
+    el.innerHTML = isCash ? `→ 算在 <b>${+c.slice(5)} 月</b>` : `${+v.slice(5)} 月帳 → <b>${+c.slice(5)} 月付</b>，算在 ${+c.slice(5)} 月`;
+    el.className = 'cnt' + (c !== thisMonth() ? ' warn' : ''); };
+  inp.addEventListener('input', upd); inp.addEventListener('change', upd); upd();
+}
 function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(window._t); window._t=setTimeout(()=>el.classList.remove('show'),2400); }
 function lsGet(k, d){ try { return localStorage.getItem(k) ?? d; } catch { return d; } }
 function lsSet(k, v){ try { localStorage.setItem(k, v); } catch {} }
@@ -651,7 +662,7 @@ function viewBillBulk() {
       <div class="typebar ${bulkCash ? 'cash' : ''}">目前是：<b>${bulkCash ? '💵 現金貨款（當場付現）' : '📄 月結帳（廠商帳單、下個月付）'}</b></div>
       <div class="hint" style="margin-top:8px">一行一家：<b>廠商 金額</b>。可以直接從 Excel 選兩欄（廠商、金額）複製貼上。</div>
       <div class="row2">
-        <div><label>${bulkCash ? '月份（現金是幾月付的）' : '帳月（套用到全部）'}</label><input id="bMonth" type="month" value="${bulkCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"></div>
+        <div><label>${bulkCash ? '月份（現金是幾月付的）' : '帳月（帳單上寫幾月帳）'}</label><input id="bMonth" type="month" value="${bulkCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"><div id="cntHint" class="cnt"></div></div>
         <div></div>
       </div>
       ${bulkCash ? '' : payChipsHtml()}
@@ -661,9 +672,9 @@ function viewBillBulk() {
       <button class="btn main block" id="bulkSave" disabled>全部新增</button>
     </div>
     <div id="billLists"><div class="center">載入中…</div></div>`;
-  bindBillMode(); bindPayChips();
+  bindBillMode(); bindPayChips(); bindCountHint(bulkCash);
   document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
-  $('#bMonth').onchange = e => { if (bulkCash) billForm.cashMonth = e.target.value; else billForm.month = e.target.value; };
+  $('#bMonth').onchange = e => { if (bulkCash) billForm.cashMonth = e.target.value; else billForm.month = e.target.value; upd(); };
   const upd = () => {
     billForm.bulkText = $('#bulkText').value;
     const p = parseBulk(billForm.bulkText), tot = p.ok.reduce((a, b) => a + b.amount, 0);
@@ -672,7 +683,8 @@ function viewBillBulk() {
          <div style="margin-top:6px"><b>${p.ok.length} 家・合計 ${money(tot)}</b>${p.bad.length ? `<span class="out">　第 ${p.bad.join('、')} 行看不懂，會跳過</span>` : ''}</div>`
       : (p.bad.length ? `<span class="out">看不懂格式，請用「廠商 金額」一行一家</span>` : '');
     $('#bulkSave').disabled = !p.ok.length;
-    $('#bulkSave').textContent = p.ok.length ? `新增 ${p.ok.length} 筆【${bulkCash ? '現金貨款' : '月結帳'}】${money(tot)}` : '全部新增';
+    const bm = $('#bMonth').value, cm = bm ? (bulkCash ? bm : addMonth(bm, 1)) : '';
+    $('#bulkSave').textContent = p.ok.length ? `新增 ${p.ok.length} 筆【${bulkCash ? '現金貨款' : (bm ? +bm.slice(5) + ' 月帳' : '月結帳')}】${money(tot)}${cm ? '・算在 ' + +cm.slice(5) + ' 月' : ''}` : '全部新增';
   };
   $('#bulkText').oninput = upd; upd();
   $('#bulkSave').onclick = async () => {
@@ -707,7 +719,7 @@ async function viewBill() {
       <input id="vendor" list="vendorList" placeholder="輸入或選擇廠商" autocomplete="off">
       <datalist id="vendorList">${cfg.vendors.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
       <div class="row2">
-        <div><label>${isCash ? '月份（現金是幾月付的）' : '帳月'}</label><input id="bMonth" type="month" value="${isCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"></div>
+        <div><label>${isCash ? '月份（現金是幾月付的）' : '帳月（帳單上寫幾月帳）'}</label><input id="bMonth" type="month" value="${isCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"><div id="cntHint" class="cnt"></div></div>
         <div><label>金額</label><input id="bAmt" type="number" inputmode="numeric" placeholder="0"></div>
       </div>
       ${isCash ? '' : `
@@ -726,7 +738,7 @@ async function viewBill() {
   `;
   bindBillMode();
   document.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { billForm.type = b.dataset.bt; viewBill(); });
-  bindPayChips();
+  bindPayChips(); bindCountHint(isCash);
   $('#bMonth').onchange = e => { if (isCash) billForm.cashMonth = e.target.value; else billForm.month = e.target.value; };
   $('#saveBill').onclick = async () => {
     const btn = $('#saveBill'); btn.disabled = true;
@@ -760,12 +772,13 @@ function byInput(list) {
   }).map(x => x[1]);
 }
 function countMonth(b) { return b.type === '現金' ? b.month : addMonth(b.month, 1); }
-function billItem(b, selectable, seq, convSel) {
+function billItem(b, selectable, seq, convSel, monSel) {
   const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
   const unpaid = b.status !== '已付';
   return `<div class="item" data-bill="${esc(b.id)}">
     ${selectable && unpaid ? `<input type="checkbox" class="bsel" data-sel="${esc(b.id)}" data-amt="${b.amount}" ${billSel.has(b.id) ? 'checked' : ''}>` : ''}
     ${convSel ? `<input type="checkbox" class="csel" data-csel="${esc(b.id)}">` : ''}
+    ${monSel ? `<input type="checkbox" class="msel" data-msel="${esc(b.id)}">` : ''}
     ${seq ? `<div class="seq">${seq}</div>` : ''}
     <div style="flex:1;min-width:0"><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
       <div class="s">${b.type === '現金' ? esc(b.month) + ' 現金貨款' : esc(b.month) + ' 帳'}・算在 ${+countMonth(b).slice(5)} 月${b.method && b.type !== '現金' ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
@@ -811,7 +824,16 @@ async function loadBills() {
         <div class="hint">跟總覽淨利扣的一樣</div></div>
       <div class="card"><h2>📄 月結帳：${pm} 月帳 <span>${money(sum(monthly))}</span></h2>
         <div class="hint" style="margin:-6px 0 6px">廠商月底寄帳單、下個月付的。${pm} 月帳在 ${mm} 月付。</div>
-        ${monthly.length ? monthly.map(b => billItem(b, false)).join('') : `<div class="hint">沒有 ${pm} 月帳</div>`}</div>
+        ${monthly.length ? `
+        <div class="batch conv">
+          <label class="selall"><input type="checkbox" id="mselAll"> 全選</label>
+          <span class="hint" id="mselInfo">帳月選錯的，勾選後改帳月</span>
+          <span style="margin-left:auto" class="hint">改成</span>
+          <input type="month" id="mMonth" value="${addMonth(j.prevMonth, -1)}" style="width:auto;padding:8px 10px">
+          <span class="hint">帳</span>
+          <button class="btn ok sm" id="mBtn" disabled>改帳月</button>
+        </div>` : ''}
+        ${monthly.length ? monthly.map(b => billItem(b, false, 0, false, true)).join('') : `<div class="hint">沒有 ${pm} 月帳</div>`}</div>
       <div class="card"><h2>💵 現金貨款：${mm} 月 <span>${money(sum(cash))}</span></h2>
         <div class="hint" style="margin:-6px 0 6px">當場付現的進貨，照你輸入的順序排，方便對帳。</div>
         ${cash.length ? `<button class="btn gray sm" id="delAllCash" data-ids="${esc(cash.map(b => b.id).join(','))}" data-sum="${sum(cash)}" style="margin-bottom:6px">🗑 刪除 ${mm} 月全部現金（${cash.length} 筆）重新輸入</button>` : ''}
@@ -829,6 +851,37 @@ async function loadBills() {
       })()}
       <div class="card"><h2>最近新增 <span class="hint">不分月份，確認剛剛有沒有存到</span></h2>
         ${(j.recent || []).length ? j.recent.map(b => billItem(b, false)).join('') : '<div class="hint">還沒有帳款</div>'}</div>`;
+
+    // 月結帳月選錯 → 改帳月（重新新增、再刪掉原本的；付款狀態照舊）
+    if ($('#mBtn')) {
+      const monthly = j.ofMonth.filter(b => b.type !== '現金');
+      const upd = () => {
+        const sel = [...document.querySelectorAll('.msel:checked')].map(x => x.dataset.msel);
+        const tot = monthly.filter(b => sel.includes(b.id)).reduce((a, b) => a + b.amount, 0);
+        $('#mselInfo').textContent = sel.length ? `已選 ${sel.length} 筆・${money(tot)}` : '帳月選錯的，勾選後改帳月';
+        $('#mBtn').disabled = !sel.length;
+        $('#mselAll').checked = sel.length === monthly.length;
+      };
+      document.querySelectorAll('.msel').forEach(x => x.onchange = upd);
+      $('#mselAll').onchange = e => { document.querySelectorAll('.msel').forEach(x => x.checked = e.target.checked); upd(); };
+      $('#mBtn').onclick = async () => {
+        const sel = [...document.querySelectorAll('.msel:checked')].map(x => x.dataset.msel);
+        const items = byInput(monthly.filter(b => sel.includes(b.id)));
+        const mth = $('#mMonth').value;
+        if (!items.length || !/^\d{4}-\d{2}$/.test(mth)) return;
+        if (!confirm(`把 ${items.length} 筆改成 ${mth} 帳（算在 ${+addMonth(mth, 1).slice(5)} 月）？`)) return;
+        const btn = $('#mBtn'); btn.disabled = true; btn.textContent = '處理中…';
+        try {
+          await api('addBills', { bills: items.map(b => ({ vendor: b.vendor, amount: b.amount, note: b.note, month: mth, type: '月結',
+            pay: b.status === '已付' ? (b.method || '轉帳') : '', payDate: b.payDate || today() })) });
+          let k = 0;
+          const worker = async () => { while (k < items.length) { const id = items[k++].id; try { await api('delBill', { id }); } catch (e) {} } };
+          await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
+          toast(`已改成 ${mth} 帳 ${items.length} 筆`);
+        } catch (e) { toast('失敗：' + e.message); }
+        loadBills();
+      };
+    }
 
     // 現金打錯 → 改成月結（新增成月結、再刪掉原本的現金）
     if ($('#convBtn')) {
