@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<script data-ver="ledger-5">
+<script data-ver="ledger-6">
 /* 自動更新：LINE 和 GitHub 會暫存舊頁面，打開時偷偷檢查有沒有新版，有就自動換成新版 */
 (function () {
   var me = document.currentScript.getAttribute('data-ver');
@@ -206,6 +206,11 @@
   .payrow{gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
   .payrow .chip{padding:7px 14px;font-size:14px;background:var(--ok-soft);border-color:#bfe5cb;color:var(--ok);font-weight:700}
   /* ===== 帳款：月結／現金分開 ===== */
+  .typebar{margin-top:10px;padding:10px 12px;border-radius:12px;background:#eef2ff;color:#3b5bdb;font-size:14px}
+  .typebar.cash{background:#fff4e5;color:#b45309}
+  .seg button.cashon{color:#b45309}
+  .batch.conv{margin:4px 0 8px}
+  .csel{width:20px;height:20px;accent-color:var(--brand);flex:none;margin-right:2px}
   .seq{flex:none;width:26px;height:26px;border-radius:8px;background:#eceef2;color:var(--ink2);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-right:2px}
   .paysum .split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
   .paysum .split > div{background:#f6f7f9;border-radius:14px;padding:12px}
@@ -252,8 +257,11 @@
     h1{font-size:32px}
     .toast{bottom:30px}
     .stats{grid-template-columns:repeat(4,1fr)}
-    #view.cols{display:grid;grid-template-columns:440px 1fr;gap:18px;align-items:start}
-    #view.cols > .card:first-child{position:sticky;top:130px;max-height:calc(100vh - 150px);overflow-y:auto;overscroll-behavior:contain}
+    #verTag{padding-bottom:6px !important}
+    /* 左右兩欄各自捲動：整頁不動，左邊捲左邊、右邊捲右邊 */
+    #view.cols{display:grid;grid-template-columns:440px 1fr;gap:18px;align-items:stretch;overflow:hidden}
+    #view.cols > *{overflow-y:auto;overscroll-behavior:contain;min-height:0;scrollbar-width:thin}
+    #view.cols > .card:first-child{align-self:start;max-height:100%}
     #view.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
     #view.grid > .card{margin-bottom:0}
     #view.grid > .hero, #view.grid > .stats, #view.grid > .full{grid-column:1 / -1}
@@ -285,7 +293,7 @@
 
 <div class="toast" id="toast"></div>
 
-<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v5</div>
+<div id="verTag" style="text-align:center;font-size:11px;color:#9aa0ab;opacity:.7;padding:8px 0 calc(90px + env(safe-area-inset-bottom))">ledger v6</div>
 <script>
 /* ====== 設定（部署前填好）====== */
 const LIFF_ID = '2010744078-JVmXBk98';
@@ -637,9 +645,10 @@ function viewBillBulk() {
       ${billModeSwitch()}
       <h2>大量新增廠商帳款</h2>
       <div class="seg">
-        <button class="${!bulkCash?'on':''}" data-bt="月結">月結</button>
-        <button class="${bulkCash?'on':''}" data-bt="現金">現金（已付）</button>
+        <button class="${!bulkCash?'on':''}" data-bt="月結">📄 月結</button>
+        <button class="${bulkCash?'on cashon':''}" data-bt="現金">💵 現金（已付）</button>
       </div>
+      <div class="typebar ${bulkCash ? 'cash' : ''}">目前是：<b>${bulkCash ? '💵 現金貨款（當場付現）' : '📄 月結帳（廠商帳單、下個月付）'}</b></div>
       <div class="hint" style="margin-top:8px">一行一家：<b>廠商 金額</b>。可以直接從 Excel 選兩欄（廠商、金額）複製貼上。</div>
       <div class="row2">
         <div><label>${bulkCash ? '月份（現金是幾月付的）' : '帳月（套用到全部）'}</label><input id="bMonth" type="month" value="${bulkCash ? (billForm.cashMonth || thisMonth()) : (billForm.month || defaultBillMonth())}"></div>
@@ -663,7 +672,7 @@ function viewBillBulk() {
          <div style="margin-top:6px"><b>${p.ok.length} 家・合計 ${money(tot)}</b>${p.bad.length ? `<span class="out">　第 ${p.bad.join('、')} 行看不懂，會跳過</span>` : ''}</div>`
       : (p.bad.length ? `<span class="out">看不懂格式，請用「廠商 金額」一行一家</span>` : '');
     $('#bulkSave').disabled = !p.ok.length;
-    $('#bulkSave').textContent = p.ok.length ? `全部新增 ${p.ok.length} 筆（${money(tot)}）` : '全部新增';
+    $('#bulkSave').textContent = p.ok.length ? `新增 ${p.ok.length} 筆【${bulkCash ? '現金貨款' : '月結帳'}】${money(tot)}` : '全部新增';
   };
   $('#bulkText').oninput = upd; upd();
   $('#bulkSave').onclick = async () => {
@@ -751,11 +760,12 @@ function byInput(list) {
   }).map(x => x[1]);
 }
 function countMonth(b) { return b.type === '現金' ? b.month : addMonth(b.month, 1); }
-function billItem(b, selectable, seq) {
+function billItem(b, selectable, seq, convSel) {
   const tag = b.status === '已付' ? `<span class="tag paid">已付${b.payDate ? ' ' + b.payDate.slice(5) : ''}</span>` : '<span class="tag unpaid">未付</span>';
   const unpaid = b.status !== '已付';
   return `<div class="item" data-bill="${esc(b.id)}">
     ${selectable && unpaid ? `<input type="checkbox" class="bsel" data-sel="${esc(b.id)}" data-amt="${b.amount}" ${billSel.has(b.id) ? 'checked' : ''}>` : ''}
+    ${convSel ? `<input type="checkbox" class="csel" data-csel="${esc(b.id)}">` : ''}
     ${seq ? `<div class="seq">${seq}</div>` : ''}
     <div style="flex:1;min-width:0"><div class="t">${esc(b.vendor)}${b.type==='現金'?'<span class="tag cash">現金</span>':''}${tag}</div>
       <div class="s">${b.type === '現金' ? esc(b.month) + ' 現金貨款' : esc(b.month) + ' 帳'}・算在 ${+countMonth(b).slice(5)} 月${b.method && b.type !== '現金' ? ' · ' + esc(b.method) : ''}${b.note ? ' · ' + esc(b.note) : ''}</div>
@@ -805,10 +815,50 @@ async function loadBills() {
       <div class="card"><h2>💵 現金貨款：${mm} 月 <span>${money(sum(cash))}</span></h2>
         <div class="hint" style="margin:-6px 0 6px">當場付現的進貨，照你輸入的順序排，方便對帳。</div>
         ${cash.length ? `<button class="btn gray sm" id="delAllCash" data-ids="${esc(cash.map(b => b.id).join(','))}" data-sum="${sum(cash)}" style="margin-bottom:6px">🗑 刪除 ${mm} 月全部現金（${cash.length} 筆）重新輸入</button>` : ''}
-        ${cash.length ? cash.map((b, i) => billItem(b, false, i + 1)).join('') : `<div class="hint">${mm} 月沒有現金貨款</div>`}</div>`;
+        ${cash.length ? `
+        <div class="batch conv">
+          <label class="selall"><input type="checkbox" id="cselAll"> 全選</label>
+          <span class="hint" id="cselInfo">勾選打錯的，改成月結</span>
+          <span style="margin-left:auto" class="hint">改成</span>
+          <input type="month" id="convMonth" value="${j.prevMonth}" style="width:auto;padding:8px 10px">
+          <span class="hint">帳</span>
+          <select id="convPay" style="width:auto;padding:8px 10px"><option value="">未付</option>${PAY_WAYS.map(w => `<option value="${w}">已付・${w}</option>`).join('')}</select>
+          <button class="btn ok sm" id="convBtn" disabled>改成月結</button>
+        </div>` : ''}
+        ${cash.length ? cash.map((b, i) => billItem(b, false, i + 1, true)).join('') : `<div class="hint">${mm} 月沒有現金貨款</div>`}</div>`;
       })()}
       <div class="card"><h2>最近新增 <span class="hint">不分月份，確認剛剛有沒有存到</span></h2>
         ${(j.recent || []).length ? j.recent.map(b => billItem(b, false)).join('') : '<div class="hint">還沒有帳款</div>'}</div>`;
+
+    // 現金打錯 → 改成月結（新增成月結、再刪掉原本的現金）
+    if ($('#convBtn')) {
+      const cash = j.ofMonth.filter(b => b.type === '現金');
+      const upd = () => {
+        const sel = [...document.querySelectorAll('.csel:checked')].map(x => x.dataset.csel);
+        const tot = cash.filter(b => sel.includes(b.id)).reduce((a, b) => a + b.amount, 0);
+        $('#cselInfo').textContent = sel.length ? `已選 ${sel.length} 筆・${money(tot)}` : '勾選打錯的，改成月結';
+        $('#convBtn').disabled = !sel.length;
+        $('#cselAll').checked = sel.length === cash.length;
+      };
+      document.querySelectorAll('.csel').forEach(x => x.onchange = upd);
+      $('#cselAll').onchange = e => { document.querySelectorAll('.csel').forEach(x => x.checked = e.target.checked); upd(); };
+      $('#convBtn').onclick = async () => {
+        const sel = [...document.querySelectorAll('.csel:checked')].map(x => x.dataset.csel);
+        const items = byInput(cash.filter(b => sel.includes(b.id)));
+        const mth = $('#convMonth').value, pay = $('#convPay').value;
+        if (!items.length || !/^\d{4}-\d{2}$/.test(mth)) return;
+        if (!confirm(`把 ${items.length} 筆改成【月結】${mth} 帳（${pay ? '已付・' + pay : '未付'}）？\n合計 ${money(items.reduce((a, b) => a + b.amount, 0))}`)) return;
+        const btn = $('#convBtn'); btn.disabled = true; btn.textContent = '處理中…';
+        try {
+          await api('addBills', { bills: items.map(b => ({ vendor: b.vendor, amount: b.amount, note: b.note, month: mth, type: '月結', pay, payDate: today() })) });
+          let k = 0;
+          const worker = async () => { while (k < items.length) { const id = items[k++].id; try { await api('delBill', { id }); } catch (e) {} } };
+          await Promise.all(Array.from({ length: Math.min(6, items.length) }, worker));
+          toast(`已改成月結 ${items.length} 筆`);
+        } catch (e) { toast('失敗：' + e.message); }
+        loadBills();
+      };
+    }
 
     // 刪除整個月的現金貨款（重新輸入用）
     if ($('#delAllCash')) $('#delAllCash').onclick = async () => {
@@ -1569,6 +1619,19 @@ const TITLES = {
   more:   ['更多功能', '集點狀況、店務系統、商城、預約等所有後台工具。'],
   shopee: ['蝦皮', '8 個賣場的營收與趨勢，月底匯入訂單報表。']
 };
+/* 電腦版兩欄：把內容區高度設成剛好一個畫面，左右才能分開捲 */
+function fitCols() {
+  const v = document.getElementById('view');
+  if (!v) return;
+  if (v.classList.contains('cols') && innerWidth >= 900) {
+    if (scrollY) scrollTo(0, 0);
+    const top = v.getBoundingClientRect().top;
+    v.style.height = Math.max(360, innerHeight - top - 14) + 'px';
+  } else v.style.height = '';
+}
+addEventListener('resize', fitCols);
+new MutationObserver(fitCols).observe(document.getElementById('view'), { attributes: true, attributeFilter: ['class'] });
+
 function go(t) {
   tab = t;
   try { sessionStorage.setItem('ledgerTab', t); } catch (e) {}
